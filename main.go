@@ -1,6 +1,7 @@
 package main
 
 import (
+	"embed"
 	"errors"
 	"io/ioutil"
 	"log"
@@ -21,6 +22,9 @@ var CLI struct {
 		Target string `optional:"postmake.lua" help:"Output File"`
 	} `cmd:"" help:"Builds an install file using postmake.lua file"`
 }
+
+//go:embed lua/**
+var InternalPlugin embed.FS
 
 func main() {
 	ctx := kong.Parse(&CLI)
@@ -328,7 +332,7 @@ func build() {
 			if strings.HasPrefix(pluginpath, "internal/") {
 				pluginname := pluginpath[len("internal/"):]
 
-				data, err := os.ReadFile("./lua/" + pluginname + "/init.lua")
+				data, err := InternalPlugin.ReadFile("lua/" + pluginname + "/init.lua")
 				if err != nil {
 					l.RaiseError("unable to read plugin %s init.lua [%s]", pluginpath, err.Error())
 				}
