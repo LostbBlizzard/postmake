@@ -5,6 +5,8 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"path"
+	"strings"
 
 	"github.com/alecthomas/kong"
 	lua "github.com/yuin/gopher-lua"
@@ -72,6 +74,26 @@ func makepostbuildforplugin(l *lua.LState, oldpostbuild lua.LTable, oldcontext *
 		l.Push(l.GetField(&oldpostbuild, "appversion"))
 		return 1
 	}))
+	l.SetField(postbuilde, "apppublisher", l.NewFunction(func(l *lua.LState) int {
+		l.Push(l.GetField(&oldpostbuild, "apppublisher"))
+		return 1
+	}))
+	l.SetField(postbuilde, "appwebsite", l.NewFunction(func(l *lua.LState) int {
+		l.Push(l.GetField(&oldpostbuild, "appwebsite"))
+		return 1
+	}))
+	l.SetField(postbuilde, "applicensefile", l.NewFunction(func(l *lua.LState) int {
+		l.Push(l.GetField(&oldpostbuild, "applicensefile"))
+		return 1
+	}))
+	l.SetField(postbuilde, "appid", l.NewFunction(func(l *lua.LState) int {
+		l.Push(l.GetField(&oldpostbuild, "appid"))
+		return 1
+	}))
+	l.SetField(postbuilde, "appinstalldir", l.NewFunction(func(l *lua.LState) int {
+		l.Push(l.GetField(&oldpostbuild, "appinstalldir"))
+		return 1
+	}))
 	l.SetField(postbuilde, "output", l.NewFunction(func(l *lua.LState) int {
 		l.Push(l.GetField(&oldpostbuild, "output"))
 		return 1
@@ -132,6 +154,12 @@ func build() {
 
 	L.SetField(postmaketable, "appname", lua.LString("app"))
 	L.SetField(postmaketable, "appversion", lua.LString("0.0.1"))
+	L.SetField(postmaketable, "apppublisher", lua.LString("publisher"))
+	L.SetField(postmaketable, "appwebsite", lua.LString("https://github.com/LostbBlizzard/postmake"))
+	L.SetField(postmaketable, "applicensefile", lua.LString(""))
+	L.SetField(postmaketable, "appid", lua.LString(""))
+	L.SetField(postmaketable, "appinstalldir", lua.LString(LUAHOMEDir+"app"))
+
 	L.SetField(postmaketable, "output", lua.LString("install-"+CLI.Build.Target))
 
 	L.SetField(postmaketable, "target", L.NewFunction(func(l *lua.LState) int {
@@ -142,7 +170,7 @@ func build() {
 		l.Push(lua.LString(LuaiNSTALLdIR))
 		return 1
 	}))
-	L.SetField(postmaketable, "hoemdir", L.NewFunction(func(l *lua.LState) int {
+	L.SetField(postmaketable, "homedir", L.NewFunction(func(l *lua.LState) int {
 		l.Push(lua.LString(LUAHOMEDir))
 		return 1
 	}))
@@ -297,8 +325,10 @@ func build() {
 			return 1
 		} else {
 
-			if pluginpath == "internal/shellscript" {
-				data, err := os.ReadFile("./lua/shellscript/init.lua")
+			if strings.HasPrefix(pluginpath, "internal/") {
+				pluginname := pluginpath[len("internal/"):]
+
+				data, err := os.ReadFile("./lua/" + pluginname + "/init.lua")
 				if err != nil {
 					l.RaiseError("unable to read plugin %s init.lua [%s]", pluginpath, err.Error())
 				}
@@ -337,6 +367,26 @@ func build() {
 			}
 
 			l.SetField(table, "files", filestable)
+
+			l.SetField(table, "mainfile", l.NewFunction(func(l *lua.LState) int {
+				newtable := l.NewTable()
+
+				l.SetField(newtable, "name", l.NewFunction(func(l *lua.LState) int {
+					l.Push(lua.LString(path.Base(configdata.mainfile.input)))
+					return 1
+				}))
+				l.SetField(newtable, "input", l.NewFunction(func(l *lua.LState) int {
+					l.Push(lua.LString(configdata.mainfile.input))
+					return 1
+				}))
+				l.SetField(newtable, "output", l.NewFunction(func(l *lua.LState) int {
+					l.Push(lua.LString(configdata.mainfile.output))
+					return 1
+				}))
+
+				l.Push(newtable)
+				return 1
+			}))
 		})
 
 		l.Push(makefuncion)
