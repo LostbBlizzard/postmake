@@ -79,8 +79,8 @@ function build.make(postmake, configs, settings)
 			exit(1)
 		end
 		outputfile:write(" [ \"$(uname)\" = \"" ..
-		ostounname(config.os()) ..
-		"\" ] && [ \"$(uname -p)\" = \"" .. archtounname(config.arch()) .. "\" ]; \nthen\n")
+			ostounname(config.os()) ..
+			"\" ] && [ \"$(uname -p)\" = \"" .. archtounname(config.arch()) .. "\" ]; \nthen\n")
 
 		outputfile:write("\n")
 
@@ -88,7 +88,7 @@ function build.make(postmake, configs, settings)
 		for input, output in pairs(config.files) do
 			if count == 0 then
 				outputfile:write("echo \"Installing for " ..
-				ostounname(config.os()) .. "-" .. archtounname(config.arch()) .. "\"\n\n")
+					ostounname(config.os()) .. "-" .. archtounname(config.arch()) .. "\"\n\n")
 			end
 			local newout = resolveoutputpath(output)
 			outputfile:write("curl -LJ " .. weburl .. newout .. " -o " .. "$Installdir" .. newout .. "\n\n")
@@ -111,7 +111,7 @@ function build.make(postmake, configs, settings)
 	end
 	outputfile:write("else\n\n")
 	outputfile:write("echo \"Unable to Install '" ..
-	postmake.appname() .. "' There is no configuration for your system\"\n")
+		postmake.appname() .. "' There is no configuration for your system\"\n")
 	outputfile:write("exit 1\n\n")
 	outputfile:write("fi\n\n")
 
