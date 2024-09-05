@@ -2,7 +2,7 @@ local build = {}
 
 
 function resolveoutputpath(path)
-	return path
+	return "$Installdir" .. path
 end
 
 function ostounname(oosname)
@@ -29,19 +29,108 @@ function archtounname(archtype)
 	end
 end
 
+function stringtoshellsrciptvarable(varablename)
+	return "var" .. varablename:gsub(" ", "_")
+end
+
+function booltoyesorno(bool)
+	if bool then
+		return "yes"
+	else
+		return "no"
+	end
+end
+
+AllowedSettingsFields =
+{
+	"weburl",
+	"uploaddir"
+}
+
+function onconfig(outputfile, config, weburl, uploaddir)
+	for input, output in pairs(config.files) do
+		local newout = resolveoutputpath(output)
+		--outputfile:write("curl -LJ " .. weburl .. output .. " -o " .. newout .. "\n\n")
+		outputfile:write("echo \"-LJ " .. weburl .. output .. " -o " .. newout .. "\"\n\n")
+
+		if uploaddir ~= nil then
+			postmake.os.cp(input, uploaddir .. "/" .. output)
+		end
+	end
+
+	for _, output in pairs(config.paths) do
+		outputfile:write("AddPath " .. resolveoutputpath(output) .. " \n")
+	end
+end
+
 function build.make(postmake, configs, settings)
 	print("---building shell script")
 
-	local weburl = settings.weburl;
-	local uploaddir = settings.uploaddir;
-
-	local outputpath = "./" .. postmake.output() .. ".sh"
-
-	print("writing install file to " .. outputpath)
-	if weburl == nil then
+	--- Boring checks
+	if settings.weburl == nil then
 		print("error settings must have the 'weburl' field set")
 		exit(1)
 	end
+	goterrorinsettings = false
+	for key, _ in pairs(settings) do
+		local issettingallowed = false
+
+		for _, field in ipairs(AllowedSettingsFields) do
+			if key == field then
+				issettingallowed = true
+				break
+			end
+		end
+
+		if issettingallowed then
+			goto continue
+		end
+		print("The Key '" .. key .. "' is not an  valid Shellscript Settins. Typo?\n")
+		goterrorinsettings = true
+		::continue::
+	end
+	if goterrorinsettings then
+		print("Shellscript only allows for ")
+		for i, field in ipairs(AllowedSettingsFields) do
+			print(field)
+
+			if i ~= #AllowedSettingsFields then
+				print(",")
+			end
+		end
+		print(" to be in the setting")
+		exit(1)
+	end
+
+
+	--- passed in settings
+	local weburl = settings.weburl
+	local uploaddir = settings.uploaddir
+
+	local outputpath = "./" .. postmake.output() .. ".sh"
+
+	local haspathvarables = false
+	local hasflags = false
+	for _, config in ipairs(configs) do
+		if #config.paths ~= 0 then
+			haspathvarables = true
+		end
+
+		if #config.flags ~= 0 then
+			hasflags = true
+		end
+
+		for _, subconfig in ipairs(config.ifs) do
+			if #subconfig.paths ~= 0 then
+				haspathvarables = true
+			end
+			if #subconfig.flags ~= 0 then
+				haspathvarables = true
+			end
+		end
+	end
+
+	print("writing install file to " .. outputpath)
 
 
 	outputfile = io.open(outputpath, "w")
@@ -54,12 +143,32 @@ function build.make(postmake, configs, settings)
 	outputfile:write("\n\n")
 
 
-	outputfile:write("Installdir=\"$HOME\\." .. postmake.appname() .. "\" \n")
+	outputfile:write("Installdir=\"$HOME/." .. postmake.appname() .. "\" \n")
 
 	outputfile:write("\n")
 
 	outputfile:write("mkdir -p \"$Installdir\" \n")
 
+	if haspathvarables then
+		outputfile:write("\nAddPath () {\n")
+		outputfile:write("echo trying $1 to PATH\n")
+		outputfile:write("}\n\n")
+	end
+
+	if hasflags then
+		outputfile:write("\nCheckInputYesOrNo () {\n")
+		outputfile:write("if [ \"$1\" == \"\" ] \nthen \n\n")
+		outputfile:write("echo $2\n\n")
+		outputfile:write("elif [ \"$1\" == \"y\" ] || [ \"$1\" == \"yes\" ] \nthen \n\n")
+		outputfile:write("echo true\n\n")
+		outputfile:write("elif [ \"$1\" == \"n\" ] || [ \"$1\" == \"no\" ] \nthen \n\n")
+		outputfile:write("echo false\n\n")
+		outputfile:write("else \n\n")
+		outputfile:write("echo \"wanted [y]es or [n]o but got '$1' \" > /dev/tty\n")
+		outputfile:write("exit 1\n\n")
+		outputfile:write("fi\n")
+		outputfile:write("}\n\n")
+	end
 
 	if uploaddir ~= nil then
 		postmake.os.mkdirall(uploaddir)
@@ -71,6 +180,7 @@ function build.make(postmake, configs, settings)
 		outputfile:write("\n")
 		outputfile:write("if ")
 	end
+
 	for configindex, config in ipairs(configs) do
 		local islast = configindex == #configs
 
@@ -84,26 +194,45 @@ function build.make(postmake, configs, settings)
 
 		outputfile:write("\n")
 
-		local count = 0
-		for input, output in pairs(config.files) do
-			if count == 0 then
-				outputfile:write("echo \"Installing for " ..
-					ostounname(config.os()) .. "-" .. archtounname(config.arch()) .. "\"\n\n")
-			end
-			local newout = resolveoutputpath(output)
-			outputfile:write("curl -LJ " .. weburl .. newout .. " -o " .. "$Installdir" .. newout .. "\n\n")
-
-			if uploaddir ~= nil then
-				postmake.os.cp(input, uploaddir .. "/" .. output)
-			end
-			count = count + 1
+		if #config.flags ~= 0 then
+			outputfile:write("echo Press enter or type nothing for default\n")
+			outputfile:write("echo\n")
 		end
 
-		--if count == 0 then
-		if true then
-			outputfile:write(" :\n")
+		for _, flag in ipairs(config.flags) do
+			outputfile:write("read -p \"" ..
+				flag.flagname() ..
+				" [y/n] default is " ..
+				booltoyesorno(flag.defaultvalue()) .. ":\" userinput\n")
+
+			outputfile:write(stringtoshellsrciptvarable(flag.flagname()) ..
+				"=$(CheckInputYesOrNo $userinput " .. tostring(flag.defaultvalue()) .. ")\n")
 		end
 
+		outputfile:write("\n")
+
+
+		onconfig(outputfile, config, weburl, uploaddir)
+
+		for _, output in ipairs(config.ifs) do
+			local isfirstiniflistloop = true
+
+			for _, output2 in ipairs(output.iflist) do
+				if not isfirstiniflistloop then
+					outputfile:write(" ||")
+				else
+					outputfile:write("if")
+				end
+				outputfile:write(" [ \"$" .. stringtoshellsrciptvarable(output2) .. "\" == true ] ")
+
+				isfirstiniflistloop = false
+			end
+			outputfile:write("\nthen\n\n")
+
+			onconfig(outputfile, output, weburl, uploaddir)
+
+			outputfile:write("\nfi\n\n")
+		end
 
 		if not islast then
 			outputfile:write("elif")

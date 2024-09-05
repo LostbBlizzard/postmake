@@ -196,6 +196,9 @@ function build.make(postmake, configs, settings)
 		outputfile:write("Source: \"" .. reltoinnofile .. "\"; DestDir: \"" .. newout .. "\";\n")
 	end
 
+	for _, path in ipairs(config.paths) do
+		print(path)
+	end
 	outputfile:close()
 end
 

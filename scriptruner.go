@@ -27,15 +27,27 @@ type InputFile struct {
 	output string
 }
 type Config struct {
-	os       string
-	arch     string
-	mainfile InputFile
-	files    []InputFile
+	os          string
+	arch        string
+	mainfile    InputFile
+	files       []InputFile
+	path        []string
+	flags       []Flag
+	tabletoflag map[*lua.LTable]int
+
+	dependsonflags []string
+}
+
+type Flag struct {
+	FlagName     string
+	DefaultValue bool
 }
 type PreBuildContext struct {
 	target        string
 	loadedplugins map[string]Loadedplugin
 	configs       []Config
+
+	tabletoconfig map[*lua.LTable]int
 }
 
 const LuaiNSTALLdIR = "/"
@@ -76,6 +88,11 @@ func makepostbuildforplugin(l *lua.LState, oldpostbuild lua.LTable, oldcontext *
 		l.Push(l.GetField(&oldpostbuild, "output"))
 		return 1
 	}))
+
+	newtableflags := l.NewTable()
+
+	l.SetField(postbuilde, "flags", newtableflags)
+
 	addutills(l, postbuilde)
 	return postbuilde
 }
@@ -120,13 +137,188 @@ func addutills(l *lua.LState, table *lua.LTable) {
 	l.SetField(table, "os", ostable)
 }
 
+func addconfigfuncions(L *lua.LState, table *lua.LTable, getonconfig func(func(config *Config)), prebuild *PreBuildContext) {
+
+	L.SetField(table, "addfile", L.NewFunction(func(l *lua.LState) int {
+
+		input := InputFile{
+			input:  l.ToString(1),
+			output: l.ToString(2),
+		}
+
+		getonconfig(func(config *Config) {
+			config.files = append(config.files, input)
+		})
+
+		return 0
+	}))
+	L.SetField(table, "addmainfile", L.NewFunction(func(l *lua.LState) int {
+		input := InputFile{
+			input:  l.ToString(1),
+			output: l.ToString(2),
+		}
+
+		getonconfig(func(config *Config) {
+			config.files = append(config.files, input)
+			config.mainfile = input
+		})
+
+		return 0
+	}))
+	L.SetField(table, "addpath", L.NewFunction(func(l *lua.LState) int {
+		path := l.ToString(1)
+
+		getonconfig(func(config *Config) {
+			config.path = append(config.path, path)
+		})
+
+		return 0
+	}))
+
+	L.SetField(table, "newflag", L.NewFunction(func(l *lua.LState) int {
+		flagname := l.ToString(1)
+		flagdefaultvalue := l.ToBool(2)
+
+		val := l.NewTable()
+
+		getonconfig(func(config *Config) {
+			config.flags = append(config.flags, Flag{
+				FlagName:     flagname,
+				DefaultValue: flagdefaultvalue,
+			})
+		})
+		l.Push(val)
+		return 1
+	}))
+	L.SetField(table, "If", L.NewFunction(func(l *lua.LState) int {
+		flag := l.ToTable(1)
+
+		val := l.NewTable()
+
+		//Who doesn't love lambdas and recursion
+		addconfigfuncions(l, val,
+			func(f func(config *Config)) {
+
+				getonconfig(func(config *Config) {
+					flaginfo := config.flags[config.tabletoflag[flag]]
+					foundconfig, ok := FindConfigWithFlag(prebuild, config.dependsonflags, flaginfo.FlagName)
+
+					if !ok {
+						configind := len(prebuild.configs)
+
+						testconfig := Config{
+							os:             config.os,
+							arch:           config.arch,
+							dependsonflags: append(config.dependsonflags, flaginfo.FlagName)}
+
+						prebuild.configs = append(prebuild.configs, testconfig)
+						foundconfig = &prebuild.configs[configind]
+					}
+
+					f(foundconfig)
+				})
+
+			}, prebuild)
+
+		l.Push(val)
+		return 1
+	}))
+}
+func FindConfigWithFlag(context *PreBuildContext, flags []string, flag string) (*Config, bool) {
+
+	for i, item := range context.configs {
+		if len(item.dependsonflags) == len(flags)+1 {
+			if StringArrayEquals(item.dependsonflags[:len(item.dependsonflags)-1], flags) {
+				if item.dependsonflags[len(item.dependsonflags)-1] == flag {
+					return &context.configs[i], true
+				}
+			}
+		}
+	}
+
+	return nil, false
+
+}
+
+func StringArrayEquals(a []string, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i, v := range a {
+		if v != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
+func makeposttableconfig(l *lua.LState, table lua.LValue, configdata Config) {
+	filestable := l.NewTable()
+
+	for _, v := range configdata.files {
+		l.SetField(filestable, v.input, lua.LString(v.output))
+	}
+
+	l.SetField(table, "files", filestable)
+
+	pathtable := l.NewTable()
+	for i, v := range configdata.path {
+		l.RawSetInt(pathtable, i+1, lua.LString(v))
+	}
+	l.SetField(table, "paths", pathtable)
+
+	l.SetField(table, "mainfile", l.NewFunction(func(l *lua.LState) int {
+		newtable := l.NewTable()
+
+		l.SetField(newtable, "name", l.NewFunction(func(l *lua.LState) int {
+			l.Push(lua.LString(path.Base(configdata.mainfile.input)))
+			return 1
+		}))
+		l.SetField(newtable, "input", l.NewFunction(func(l *lua.LState) int {
+			l.Push(lua.LString(configdata.mainfile.input))
+			return 1
+		}))
+		l.SetField(newtable, "output", l.NewFunction(func(l *lua.LState) int {
+			l.Push(lua.LString(configdata.mainfile.output))
+			return 1
+		}))
+
+		l.Push(newtable)
+		return 1
+	}))
+
+	newtableflags := l.NewTable()
+	for i, element := range configdata.flags {
+
+		tableelement := l.NewTable()
+
+		l.SetField(tableelement, "flagname", l.NewFunction(func(l *lua.LState) int {
+			l.Push(lua.LString(element.FlagName))
+			return 1
+
+		}))
+
+		l.SetField(tableelement, "defaultvalue", l.NewFunction(func(l *lua.LState) int {
+			l.Push(lua.LBool(element.DefaultValue))
+			return 1
+		}))
+
+		newtableflags.RawSetInt(i+1, tableelement)
+	}
+	l.SetField(table, "flags", newtableflags)
+
+}
 func RunScript(input ScriptRunerInput) {
 	L := lua.NewState()
 	defer L.Close()
 
 	log := log.New(os.Stderr, "", 0)
 
-	prebuild := PreBuildContext{target: CLI.Build.Target, loadedplugins: make(map[string]Loadedplugin)}
+	prebuild := PreBuildContext{
+		target:        CLI.Build.Target,
+		loadedplugins: make(map[string]Loadedplugin),
+		tabletoconfig: make(map[*lua.LTable]int),
+	}
 
 	postmaketable := L.NewTable()
 	addutills(L, postmaketable)
@@ -155,63 +347,28 @@ func RunScript(input ScriptRunerInput) {
 	}))
 
 	configalltable := L.NewTable()
-	{
-		L.SetField(configalltable, "addfile", L.NewFunction(func(l *lua.LState) int {
-
-			input := InputFile{
-				input:  l.ToString(1),
-				output: l.ToString(2),
+	addconfigfuncions(L, configalltable,
+		func(f func(config *Config)) {
+			for i, item := range prebuild.configs {
+				if len(item.dependsonflags) == 0 {
+					f(&prebuild.configs[i])
+				}
 			}
-			for i, element := range prebuild.configs {
-				prebuild.configs[i].files = append(element.files, input)
-			}
-			return 0
-		}))
-		L.SetField(configalltable, "addmainfile", L.NewFunction(func(l *lua.LState) int {
-			input := InputFile{
-				input:  l.ToString(1),
-				output: l.ToString(2),
-			}
-			for i, element := range prebuild.configs {
-				prebuild.configs[i].files = append(element.files, input)
-			}
-			return 0
-		}))
-	}
+		}, &prebuild)
 
 	L.SetField(postmaketable, "allconfig", configalltable)
 	L.SetField(postmaketable, "foros", L.NewFunction(func(l *lua.LState) int {
 		os := l.ToString(1)
 
 		newtable := l.NewTable()
-		{
-			l.SetField(configalltable, "addfile", l.NewFunction(func(l *lua.LState) int {
-				input := InputFile{
-					input:  l.ToString(1),
-					output: l.ToString(2),
-				}
-				for i, element := range prebuild.configs {
-					if element.os == os {
-						prebuild.configs[i].files = append(element.files, input)
-						prebuild.configs[i].mainfile = input
+		addconfigfuncions(L, configalltable,
+			func(f func(config *Config)) {
+				for i, item := range prebuild.configs {
+					if item.os == os && len(item.dependsonflags) == 0 {
+						f(&prebuild.configs[i])
 					}
 				}
-				return 0
-			}))
-			l.SetField(configalltable, "addmainfile", l.NewFunction(func(l *lua.LState) int {
-				input := InputFile{
-					input:  l.ToString(1),
-					output: l.ToString(2),
-				}
-				for i, element := range prebuild.configs {
-					if element.os == os {
-						prebuild.configs[i].files = append(element.files, input)
-						prebuild.configs[i].mainfile = input
-					}
-				}
-				return 0
-			}))
-		}
+			}, &prebuild)
 
 		l.Push(newtable)
 		return 1
@@ -219,35 +376,15 @@ func RunScript(input ScriptRunerInput) {
 	L.SetField(postmaketable, "forarch", L.NewFunction(func(l *lua.LState) int {
 		arch := l.ToString(1)
 		newtable := l.NewTable()
-		{
-			l.SetField(configalltable, "addfile", l.NewFunction(func(l *lua.LState) int {
-				input := InputFile{
-					input:  l.ToString(1),
-					output: l.ToString(2),
-				}
-				for i, element := range prebuild.configs {
-					if element.arch == arch {
-						prebuild.configs[i].files = append(element.files, input)
+
+		addconfigfuncions(L, configalltable,
+			func(f func(config *Config)) {
+				for i, item := range prebuild.configs {
+					if item.arch == arch && len(item.dependsonflags) == 0 {
+						f(&prebuild.configs[i])
 					}
 				}
-				return 0
-
-			}))
-			l.SetField(configalltable, "addmainfile", l.NewFunction(func(l *lua.LState) int {
-				input := InputFile{
-					input:  l.ToString(1),
-					output: l.ToString(2),
-				}
-				for i, element := range prebuild.configs {
-					if element.arch == arch {
-						prebuild.configs[i].files = append(element.files, input)
-						prebuild.configs[i].mainfile = input
-					}
-				}
-				return 0
-
-			}))
-		}
+			}, &prebuild)
 
 		l.Push(newtable)
 		return 1
@@ -259,8 +396,10 @@ func RunScript(input ScriptRunerInput) {
 
 		ind := len(prebuild.configs)
 		prebuild.configs = append(prebuild.configs, Config{
-			os:   os,
-			arch: arch,
+			os:             os,
+			arch:           arch,
+			tabletoflag:    make(map[*lua.LTable]int),
+			dependsonflags: make([]string, 0),
 		})
 
 		val := l.NewTable()
@@ -274,27 +413,14 @@ func RunScript(input ScriptRunerInput) {
 			return 1
 		}))
 
-		l.SetField(val, "addfile", l.NewFunction(func(l *lua.LState) int {
-			prebuild.configs[ind].files = append(prebuild.configs[ind].files, InputFile{
-				input:  l.ToString(1),
-				output: l.ToString(2),
-			})
-			return 1
-		}))
-		l.SetField(val, "addmainfile", l.NewFunction(func(l *lua.LState) int {
-			newfile := InputFile{
-				input:  l.ToString(1),
-				output: l.ToString(2),
-			}
-			prebuild.configs[ind].files = append(prebuild.configs[ind].files, newfile)
-			prebuild.configs[ind].mainfile = newfile
+		addconfigfuncions(L, val, func(f func(config *Config)) {
+			f(&prebuild.configs[ind])
+		}, &prebuild)
 
-			return 1
-		}))
+		prebuild.tabletoconfig[val] = ind
 		l.Push(val)
 		return 1
 	}))
-
 	L.SetField(postmaketable, "loadplugin", L.NewFunction(func(l *lua.LState) int {
 		pluginpath := l.ToString(1)
 
@@ -314,7 +440,7 @@ func RunScript(input ScriptRunerInput) {
 
 				err = l.DoString(string(data))
 				if err != nil {
-					l.RaiseError("plugin %s failed to load", pluginpath)
+					l.RaiseError("plugin %s failed to load \n\n\n %s", pluginpath, err.Error())
 				}
 				ret := l.Get(-1)
 				l.Pop(1)
@@ -337,35 +463,31 @@ func RunScript(input ScriptRunerInput) {
 		makefuncion := l.GetField(builder, "make").(*lua.LFunction)
 
 		config.ForEach(func(index, table lua.LValue) {
-			configdata := prebuild.configs[0]
+			configdata := prebuild.configs[prebuild.tabletoconfig[table.(*lua.LTable)]]
 
-			filestable := l.NewTable()
+			makeposttableconfig(l, table, configdata)
 
-			for _, v := range configdata.files {
-				l.SetField(filestable, v.input, lua.LString(v.output))
+			newtableindex := 1
+
+			newifflagtable := l.NewTable()
+			for _, element := range prebuild.configs {
+				if element.os == configdata.os && element.arch == configdata.arch && len(element.dependsonflags) != 0 {
+					newiftable := l.NewTable()
+
+					newiflisttable := l.NewTable()
+					for i, element := range element.dependsonflags {
+						l.RawSetInt(newiflisttable, i+1, lua.LString(element))
+					}
+					l.SetField(newiftable, "iflist", newiflisttable)
+
+					makeposttableconfig(l, newiftable, element)
+
+					l.RawSetInt(newifflagtable, newtableindex, newiftable)
+					newtableindex = newtableindex + 1
+
+				}
 			}
-
-			l.SetField(table, "files", filestable)
-
-			l.SetField(table, "mainfile", l.NewFunction(func(l *lua.LState) int {
-				newtable := l.NewTable()
-
-				l.SetField(newtable, "name", l.NewFunction(func(l *lua.LState) int {
-					l.Push(lua.LString(path.Base(configdata.mainfile.input)))
-					return 1
-				}))
-				l.SetField(newtable, "input", l.NewFunction(func(l *lua.LState) int {
-					l.Push(lua.LString(configdata.mainfile.input))
-					return 1
-				}))
-				l.SetField(newtable, "output", l.NewFunction(func(l *lua.LState) int {
-					l.Push(lua.LString(configdata.mainfile.output))
-					return 1
-				}))
-
-				l.Push(newtable)
-				return 1
-			}))
+			l.SetField(table, "ifs", newifflagtable)
 		})
 
 		l.Push(makefuncion)
