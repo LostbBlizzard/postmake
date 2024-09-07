@@ -223,7 +223,12 @@ function build.make(postmake, configs, settings)
 				else
 					outputfile:write("if")
 				end
-				outputfile:write(" [ \"$" .. stringtoshellsrciptvarable(output2) .. "\" == true ] ")
+
+				if output2.isflag() then
+					outputfile:write(" [ \"$" ..
+						stringtoshellsrciptvarable(output2.flagname()) ..
+						"\" == " .. output2.value() .. " ] ")
+				end
 
 				isfirstiniflistloop = false
 			end

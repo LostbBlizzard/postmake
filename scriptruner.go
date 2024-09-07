@@ -26,6 +26,11 @@ type InputFile struct {
 	input  string
 	output string
 }
+
+type Dependsoninfo struct {
+	flagname string
+	value    string
+}
 type Config struct {
 	os          string
 	arch        string
@@ -35,7 +40,7 @@ type Config struct {
 	flags       []Flag
 	tabletoflag map[*lua.LTable]int
 
-	dependsonflags []string
+	dependsonflags []Dependsoninfo
 }
 
 type Flag struct {
@@ -201,15 +206,55 @@ func addconfigfuncions(L *lua.LState, table *lua.LTable, getonconfig func(func(c
 
 				getonconfig(func(config *Config) {
 					flaginfo := config.flags[config.tabletoflag[flag]]
-					foundconfig, ok := FindConfigWithFlag(prebuild, config.dependsonflags, flaginfo.FlagName)
+					foundconfig, ok := FindConfigWithFlag(prebuild, config.dependsonflags, flaginfo.FlagName, "true")
 
 					if !ok {
 						configind := len(prebuild.configs)
 
 						testconfig := Config{
-							os:             config.os,
-							arch:           config.arch,
-							dependsonflags: append(config.dependsonflags, flaginfo.FlagName)}
+							os:   config.os,
+							arch: config.arch,
+							dependsonflags: append(config.dependsonflags, Dependsoninfo{
+								flagname: flaginfo.FlagName,
+								value:    "true",
+							})}
+
+						prebuild.configs = append(prebuild.configs, testconfig)
+						foundconfig = &prebuild.configs[configind]
+					}
+
+					f(foundconfig)
+				})
+
+			}, prebuild)
+
+		l.Push(val)
+		return 1
+	}))
+	L.SetField(table, "IfNot", L.NewFunction(func(l *lua.LState) int {
+		flag := l.ToTable(1)
+
+		val := l.NewTable()
+
+		//Who doesn't love lambdas and recursion
+		addconfigfuncions(l, val,
+			func(f func(config *Config)) {
+
+				getonconfig(func(config *Config) {
+					flaginfo := config.flags[config.tabletoflag[flag]]
+					foundconfig, ok := FindConfigWithFlag(prebuild, config.dependsonflags, flaginfo.FlagName, "false")
+
+					if !ok {
+						configind := len(prebuild.configs)
+
+						testconfig := Config{
+							os:   config.os,
+							arch: config.arch,
+							dependsonflags: append(config.dependsonflags, Dependsoninfo{
+								flagname: flaginfo.FlagName,
+								value:    "false",
+							}),
+						}
 
 						prebuild.configs = append(prebuild.configs, testconfig)
 						foundconfig = &prebuild.configs[configind]
@@ -224,12 +269,13 @@ func addconfigfuncions(L *lua.LState, table *lua.LTable, getonconfig func(func(c
 		return 1
 	}))
 }
-func FindConfigWithFlag(context *PreBuildContext, flags []string, flag string) (*Config, bool) {
+func FindConfigWithFlag(context *PreBuildContext, flags []Dependsoninfo, flag string, value string) (*Config, bool) {
 
 	for i, item := range context.configs {
 		if len(item.dependsonflags) == len(flags)+1 {
 			if StringArrayEquals(item.dependsonflags[:len(item.dependsonflags)-1], flags) {
-				if item.dependsonflags[len(item.dependsonflags)-1] == flag {
+				value := item.dependsonflags[len(item.dependsonflags)-1]
+				if value.flagname == flag && value.flagname == value.value {
 					return &context.configs[i], true
 				}
 			}
@@ -240,7 +286,7 @@ func FindConfigWithFlag(context *PreBuildContext, flags []string, flag string) (
 
 }
 
-func StringArrayEquals(a []string, b []string) bool {
+func StringArrayEquals(a []Dependsoninfo, b []Dependsoninfo) bool {
 	if len(a) != len(b) {
 		return false
 	}
@@ -399,7 +445,7 @@ func RunScript(input ScriptRunerInput) {
 			os:             os,
 			arch:           arch,
 			tabletoflag:    make(map[*lua.LTable]int),
-			dependsonflags: make([]string, 0),
+			dependsonflags: make([]Dependsoninfo, 0),
 		})
 
 		val := l.NewTable()
@@ -476,7 +522,21 @@ func RunScript(input ScriptRunerInput) {
 
 					newiflisttable := l.NewTable()
 					for i, element := range element.dependsonflags {
-						l.RawSetInt(newiflisttable, i+1, lua.LString(element))
+						elementtable := l.NewTable()
+
+						l.SetField(elementtable, "flagname", L.NewFunction(func(l *lua.LState) int {
+							l.Push(lua.LString(element.flagname))
+							return 1
+						}))
+						l.SetField(elementtable, "value", L.NewFunction(func(l *lua.LState) int {
+							l.Push(lua.LString(element.value))
+							return 1
+						}))
+						l.SetField(elementtable, "isflag", L.NewFunction(func(l *lua.LState) int {
+							l.Push(lua.LBool(element.value == "true" || element.value == "false"))
+							return 1
+						}))
+						l.RawSetInt(newiflisttable, i+1, elementtable)
 					}
 					l.SetField(newiftable, "iflist", newiflisttable)
 
