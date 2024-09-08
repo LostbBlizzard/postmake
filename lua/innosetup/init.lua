@@ -24,7 +24,13 @@ local ContextBasedDefaultsSettinsList =
 	"DefaultGroupName",
 	"OutputBaseFilename",
 	"AppId",
-	"LaunchProgram"
+	"LaunchProgram",
+	"MyAppExeName",
+	"MyAppName",
+	"MyAppVersion",
+	"MyAppPublish",
+	"MyAppURL",
+	"MyAppExeName"
 }
 
 function build.make(postmake, configs, settings)
@@ -122,11 +128,14 @@ function build.make(postmake, configs, settings)
 		"; postmake.make(innosetup, { windows_64 }, { OutputBaseFilename = \"coolbasefile\", DefaultGroupName = \"test\" });\n\n")
 
 
-	outputfile:write("#define MyAppName \"" .. postmake.appname() .. "\"\n")
-	outputfile:write("#define MyAppVersion \"" .. postmake.appversion() .. "\"\n")
-	outputfile:write("#define MyAppPublisher \"" .. postmake.apppublisher() .. "\"\n")
-	outputfile:write("#define MyAppURL \"" .. postmake.appwebsite() .. "\"\n")
-	outputfile:write("#define MyAppExeName \"" .. config.mainfile().name() .. "\"\n\n")
+	outputfile:write("#define MyAppName \"" .. util.UseOrDefault(postmake.MyAppVersion, postmake.appname()) .. "\"\n")
+	outputfile:write("#define MyAppVersion \"" ..
+	util.UseOrDefault(postmake.MyAppVersion, postmake.appversion()) .. "\"\n")
+	outputfile:write("#define MyAppPublisher \"" ..
+	util.UseOrDefault(postmake.MyAppPublisher, postmake.apppublisher()) .. "\"\n")
+	outputfile:write("#define MyAppURL \"" .. util.UseOrDefault(settings.MyAppURL, postmake.appwebsite()) .. "\"\n")
+	outputfile:write("#define MyAppExeName \"" ..
+		util.UseOrDefault(settings.MyAppExeName, postmake.appname() + ".exe") .. "\"\n\n")
 
 	outputfile:write("[Setup]\n")
 	outputfile:write(
