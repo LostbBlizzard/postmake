@@ -151,7 +151,7 @@ function build.make(postmake, configs, settings)
 	outputfile:write("\n\n")
 
 
-	outputfile:write("Installdir=\"$HOME/." .. postmake.appname() .. "\" \n")
+	outputfile:write("Installdir=\"$HOME/." .. postmake.appinstalldir() .. "\" \n")
 
 	outputfile:write("\n")
 
@@ -305,7 +305,7 @@ function build.make(postmake, configs, settings)
 
 			for _, output2 in ipairs(output.iflist) do
 				if not isfirstiniflistloop then
-					outputfile:write(" ||")
+					outputfile:write(" &&")
 				else
 					outputfile:write("if")
 				end
