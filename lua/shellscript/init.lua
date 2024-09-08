@@ -50,8 +50,7 @@ AllowedSettingsFields =
 function onconfig(outputfile, config, weburl, uploaddir)
 	for input, output in pairs(config.files) do
 		local newout = resolveoutputpath(output)
-		--outputfile:write("curl -LJ " .. weburl .. output .. " -o " .. newout .. "\n\n")
-		outputfile:write("echo \"-LJ " .. weburl .. output .. " -o " .. newout .. "\"\n\n")
+		outputfile:write("curl -LJ " .. weburl .. output .. " -o " .. newout .. "\n\n")
 
 		if uploaddir ~= nil then
 			postmake.os.cp(input, uploaddir .. "/" .. output)
@@ -111,6 +110,7 @@ function build.make(postmake, configs, settings)
 
 	local haspathvarables = false
 	local hasflags = false
+	local hasenums = false
 	for _, config in ipairs(configs) do
 		if #config.paths ~= 0 then
 			haspathvarables = true
@@ -120,12 +120,20 @@ function build.make(postmake, configs, settings)
 			hasflags = true
 		end
 
+		if #config.enumflags ~= 0 then
+			hasenums = true
+		end
+
+
 		for _, subconfig in ipairs(config.ifs) do
 			if #subconfig.paths ~= 0 then
 				haspathvarables = true
 			end
 			if #subconfig.flags ~= 0 then
-				haspathvarables = true
+				hasflags = true
+			end
+			if #subconfig.enumflags ~= 0 then
+				hasenums = true
 			end
 		end
 	end
@@ -170,6 +178,45 @@ function build.make(postmake, configs, settings)
 		outputfile:write("}\n\n")
 	end
 
+	if hasenums then
+		outputfile:write("\nCheckArray () {\n\n")
+
+		outputfile:write("if [ \"$1\" == \"\" ] \nthen \n\n")
+		outputfile:write("echo $2\n")
+		outputfile:write("exit 0 \n")
+		outputfile:write("fi\n")
+
+		outputfile:write("arr=\"$3\" \n")
+		outputfile:write("INDEX=1\n")
+
+		outputfile:write("for i in \"${arr[@]}\" \n")
+		outputfile:write("do \n")
+
+
+		outputfile:write("if [ \"$i\" == \"$1\" ] || [ \"$INDEX\" == \"$1\" ]  \nthen \n\n")
+
+		outputfile:write("echo $i\n")
+		outputfile:write("exit 0\n")
+
+		outputfile:write("fi\n")
+
+		outputfile:write("let INDEX=${INDEX}+1\n")
+		outputfile:write("done \n")
+
+		outputfile:write("echo \"Error: Wanted one of \" > /dev/tty\n")
+		outputfile:write("for i in \"${arr[@]}\" \n")
+		outputfile:write("do \n")
+		outputfile:write("echo \"$i\" > /dev/tty\n")
+		outputfile:write("done \n")
+
+		outputfile:write("echo \n")
+		outputfile:write("echo \"or the maped number \" > /dev/tty\n")
+
+		outputfile:write("exit 1\n\n")
+
+		outputfile:write("}\n\n")
+	end
+
 	if uploaddir ~= nil then
 		postmake.os.mkdirall(uploaddir)
 	end
@@ -200,13 +247,52 @@ function build.make(postmake, configs, settings)
 		end
 
 		for _, flag in ipairs(config.flags) do
+			outputfile:write("userinput=\"\"\n")
 			outputfile:write("read -p \"" ..
 				flag.flagname() ..
 				" [y/n] default is " ..
 				booltoyesorno(flag.defaultvalue()) .. ":\" userinput\n")
 
 			outputfile:write(stringtoshellsrciptvarable(flag.flagname()) ..
-				"=$(CheckInputYesOrNo $userinput " .. tostring(flag.defaultvalue()) .. ")\n")
+				"=$(CheckInputYesOrNo \"$userinput\" " .. tostring(flag.defaultvalue()) .. ")\n")
+		end
+
+		for _, enumflag in ipairs(config.enumflags) do
+			outputfile:write("userinput=\"\" \n")
+			outputfile:write("echo Options for \"" ..
+				enumflag.flagname() .. "\"\n")
+
+			outputfile:write("echo \n")
+			outputfile:write("\n")
+			for i, value in ipairs(enumflag.values()) do
+				outputfile:write("echo \"" .. value .. " " .. tostring(i) .. ") \"\n")
+			end
+
+			outputfile:write("echo \n")
+			outputfile:write("echo \"Default is " .. enumflag.defaultvalue() .. ") \"\n")
+			outputfile:write("echo \n")
+
+			outputfile:write("read -p \"" .. enumflag.flagname() .. ":\" " .. "userinput \n")
+
+			outputfile:write("arr=")
+			outputfile:write("(")
+
+			local first = false
+			for _, value in ipairs(enumflag.values()) do
+				if first == true then
+					outputfile:write(" ")
+				end
+				outputfile:write("\"" .. value .. "\"")
+
+				first = true
+			end
+
+			outputfile:write(")\n")
+
+			outputfile:write(stringtoshellsrciptvarable(enumflag.flagname()) ..
+				"=$(CheckArray \"$userinput\" ")
+			outputfile:write("\"" .. tostring(enumflag.defaultvalue()) .. "\"")
+			outputfile:write(" $arr)\n")
 		end
 
 		outputfile:write("\n")
@@ -228,6 +314,10 @@ function build.make(postmake, configs, settings)
 					outputfile:write(" [ \"$" ..
 						stringtoshellsrciptvarable(output2.flagname()) ..
 						"\" == " .. output2.value() .. " ] ")
+				else
+					outputfile:write(" [ \"$" ..
+						stringtoshellsrciptvarable(output2.flagname()) ..
+						"\" == \"" .. output2.value() .. "\" ] ")
 				end
 
 				isfirstiniflistloop = false

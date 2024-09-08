@@ -32,13 +32,17 @@ type Dependsoninfo struct {
 	value    string
 }
 type Config struct {
-	os          string
-	arch        string
-	mainfile    InputFile
-	files       []InputFile
-	path        []string
-	flags       []Flag
+	os       string
+	arch     string
+	mainfile InputFile
+	files    []InputFile
+	path     []string
+
+	flags     []Flag
+	enumflags []EnumFlag
+
 	tabletoflag map[*lua.LTable]int
+	tabletoenum map[*lua.LTable]int
 
 	dependsonflags []Dependsoninfo
 }
@@ -46,6 +50,11 @@ type Config struct {
 type Flag struct {
 	FlagName     string
 	DefaultValue bool
+}
+type EnumFlag struct {
+	FlagName     string
+	Values       []string
+	DefaultValue string
 }
 type PreBuildContext struct {
 	target        string
@@ -179,7 +188,6 @@ func addconfigfuncions(L *lua.LState, table *lua.LTable, getonconfig func(func(c
 
 		return 0
 	}))
-
 	L.SetField(table, "newflag", L.NewFunction(func(l *lua.LState) int {
 		flagname := l.ToString(1)
 		flagdefaultvalue := l.ToBool(2)
@@ -189,6 +197,29 @@ func addconfigfuncions(L *lua.LState, table *lua.LTable, getonconfig func(func(c
 		getonconfig(func(config *Config) {
 			config.flags = append(config.flags, Flag{
 				FlagName:     flagname,
+				DefaultValue: flagdefaultvalue,
+			})
+		})
+		l.Push(val)
+		return 1
+	}))
+	L.SetField(table, "newenum", L.NewFunction(func(l *lua.LState) int {
+		flagname := l.ToString(1)
+		flagvaluestable := l.ToTable(2)
+
+		var flagsvalues []string
+		flagvaluestable.ForEach(func(l1, l2 lua.LValue) {
+			flagsvalues = append(flagsvalues, l2.String())
+		})
+
+		flagdefaultvalue := l.ToString(3)
+
+		val := l.NewTable()
+
+		getonconfig(func(config *Config) {
+			config.enumflags = append(config.enumflags, EnumFlag{
+				FlagName:     flagname,
+				Values:       flagsvalues,
 				DefaultValue: flagdefaultvalue,
 			})
 		})
@@ -255,6 +286,43 @@ func addconfigfuncions(L *lua.LState, table *lua.LTable, getonconfig func(func(c
 								value:    "false",
 							}),
 						}
+
+						prebuild.configs = append(prebuild.configs, testconfig)
+						foundconfig = &prebuild.configs[configind]
+					}
+
+					f(foundconfig)
+				})
+
+			}, prebuild)
+
+		l.Push(val)
+		return 1
+	}))
+	L.SetField(table, "IfEnum", L.NewFunction(func(l *lua.LState) int {
+		flag := l.ToTable(1)
+		enumvalue := l.ToString(2)
+
+		val := l.NewTable()
+
+		//Who doesn't love lambdas and recursion
+		addconfigfuncions(l, val,
+			func(f func(config *Config)) {
+
+				getonconfig(func(config *Config) {
+					flaginfo := config.enumflags[config.tabletoenum[flag]]
+					foundconfig, ok := FindConfigWithFlag(prebuild, config.dependsonflags, flaginfo.FlagName, enumvalue)
+
+					if !ok {
+						configind := len(prebuild.configs)
+
+						testconfig := Config{
+							os:   config.os,
+							arch: config.arch,
+							dependsonflags: append(config.dependsonflags, Dependsoninfo{
+								flagname: flaginfo.FlagName,
+								value:    enumvalue,
+							})}
 
 						prebuild.configs = append(prebuild.configs, testconfig)
 						foundconfig = &prebuild.configs[configind]
@@ -352,6 +420,35 @@ func makeposttableconfig(l *lua.LState, table lua.LValue, configdata Config) {
 		newtableflags.RawSetInt(i+1, tableelement)
 	}
 	l.SetField(table, "flags", newtableflags)
+
+	newtableenumflags := l.NewTable()
+	for i, element := range configdata.enumflags {
+		tableelement := l.NewTable()
+
+		l.SetField(tableelement, "flagname", l.NewFunction(func(l *lua.LState) int {
+			l.Push(lua.LString(element.FlagName))
+			return 1
+
+		}))
+
+		l.SetField(tableelement, "defaultvalue", l.NewFunction(func(l *lua.LState) int {
+			l.Push(lua.LString(element.DefaultValue))
+			return 1
+		}))
+
+		l.SetField(tableelement, "values", l.NewFunction(func(l *lua.LState) int {
+			newlist := l.NewTable()
+			for i, v := range element.Values {
+				l.RawSetInt(newlist, i+1, lua.LString(v))
+			}
+
+			l.Push(newlist)
+			return 1
+		}))
+
+		newtableenumflags.RawSetInt(i+1, tableelement)
+	}
+	l.SetField(table, "enumflags", newtableenumflags)
 
 }
 func RunScript(input ScriptRunerInput) {
