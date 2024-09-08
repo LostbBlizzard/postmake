@@ -6,7 +6,6 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
-	"path"
 	"strings"
 
 	lua "github.com/yuin/gopher-lua"
@@ -36,11 +35,10 @@ type CommandInfo struct {
 	parameters []string
 }
 type Config struct {
-	os       string
-	arch     string
-	mainfile InputFile
-	files    []InputFile
-	path     []string
+	os    string
+	arch  string
+	files []InputFile
+	path  []string
 
 	installcmds  []CommandInfo
 	uninstallcmd []CommandInfo
@@ -166,19 +164,6 @@ func addconfigfuncions(L *lua.LState, table *lua.LTable, getonconfig func(func(c
 
 		getonconfig(func(config *Config) {
 			config.files = append(config.files, input)
-		})
-
-		return 0
-	}))
-	L.SetField(table, "addmainfile", L.NewFunction(func(l *lua.LState) int {
-		input := InputFile{
-			input:  l.ToString(1),
-			output: l.ToString(2),
-		}
-
-		getonconfig(func(config *Config) {
-			config.files = append(config.files, input)
-			config.mainfile = input
 		})
 
 		return 0
@@ -441,26 +426,6 @@ func makeposttableconfig(l *lua.LState, table lua.LValue, configdata Config) {
 		l.RawSetInt(pathtable, i+1, lua.LString(v))
 	}
 	l.SetField(table, "paths", pathtable)
-
-	l.SetField(table, "mainfile", l.NewFunction(func(l *lua.LState) int {
-		newtable := l.NewTable()
-
-		l.SetField(newtable, "name", l.NewFunction(func(l *lua.LState) int {
-			l.Push(lua.LString(path.Base(configdata.mainfile.input)))
-			return 1
-		}))
-		l.SetField(newtable, "input", l.NewFunction(func(l *lua.LState) int {
-			l.Push(lua.LString(configdata.mainfile.input))
-			return 1
-		}))
-		l.SetField(newtable, "output", l.NewFunction(func(l *lua.LState) int {
-			l.Push(lua.LString(configdata.mainfile.output))
-			return 1
-		}))
-
-		l.Push(newtable)
-		return 1
-	}))
 
 	newtableflags := l.NewTable()
 	for i, element := range configdata.flags {

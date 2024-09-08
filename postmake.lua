@@ -19,9 +19,9 @@ local mac = postmake.newconfig("macos", "x64")
 local testflag = all.newflag("Add Path", true)
 --- Add Your files
 local winsmainprogram = postmake.installdir() .. postmake.appname .. ".exe"
-win.addmainfile("./output/postmake.exe", winsmainprogram)
-gnu.addmainfile("./output/postmake", postmake.installdir() .. postmake.appname)
-mac.addmainfile("./output/postmake_macos", postmake.installdir() .. postmake.appname)
+win.addfile("./output/postmake.exe", winsmainprogram)
+gnu.addfile("./output/postmake", postmake.installdir() .. postmake.appname)
+mac.addfile("./output/postmake_macos", postmake.installdir() .. postmake.appname)
 
 all.If(testflag).addpath(postmake.installdir())
 

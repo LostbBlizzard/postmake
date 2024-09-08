@@ -4,7 +4,9 @@ local shellscript = postmake.loadplugin("internal/shellscript")
 -- App Settings
 postmake.appname = "app"
 postmake.appversion = "0.0.1"
+postmake.output = "./output/install"
 
+postmake.appinstalldir = "~/.postmake"
 -- Short Hands
 local all = postmake.allconfig
 --local unix = postmake.foros("unix")
@@ -21,9 +23,9 @@ local mac = postmake.newconfig("macos", "x64")
 
 --- Add Your files
 
-win.addmainfile("main.exe", postmake.installdir() .. "./" .. postmake.appname + ".exe")
-gnu.addmainfile("main", postmake.installdir() .. "./" .. postmake.appname)
-mac.addmainfile("main.app", postmake.installdir() .. "./" .. postmake.appname + ".app")
+win.addfile("main.exe", postmake.installdir() .. "./" .. postmake.appname + ".exe")
+gnu.addfile("main", postmake.installdir() .. "./" .. postmake.appname)
+mac.addfile("main.app", postmake.installdir() .. "./" .. postmake.appname + ".app")
 
 all.addfile("README.md", postmake.installdir() .. "./testlua")
 
