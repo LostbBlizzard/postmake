@@ -9,6 +9,17 @@ function m.postmakepathtoinnoapppath(path)
 	return "{app}" .. path
 end
 
+local function StringStartWith(String, Start)
+	return string.sub(String, 1, string.len(Start)) == Start
+end
+
+function m.postmakepathtoinnoapppathcmd(path)
+	if not StringStartWith(path, "/") then
+		return path
+	end
+	return "{app}" .. path
+end
+
 function m.expandpostmakepathtoinnoapppath(path)
 	return "ExpandConstant('{app}') + " .. "'" .. path .. "'"
 end

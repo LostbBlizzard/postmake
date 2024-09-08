@@ -18,12 +18,12 @@ local mac = postmake.newconfig("macos", "x64")
 --- flags
 local testflag = all.newflag("Add Path", true)
 --- Add Your files
-
-win.addmainfile("./output/postmake.exe", postmake.installdir() .. postmake.appname .. ".exe")
+local winsmainprogram = postmake.installdir() .. postmake.appname .. ".exe"
+win.addmainfile("./output/postmake.exe", winsmainprogram)
 gnu.addmainfile("./output/postmake", postmake.installdir() .. postmake.appname)
 mac.addmainfile("./output/postmake_macos", postmake.installdir() .. postmake.appname)
 
 all.If(testflag).addpath(postmake.installdir())
 
 postmake.make(shellscript, { gnu, mac }, { weburl = "https//dot.com", uploaddir = "./output/upload/" });
-postmake.make(innosetup, { win }, { AppId = "abcd" });
+postmake.make(innosetup, { win }, { AppId = "abcd", LaunchProgram = winsmainprogram });

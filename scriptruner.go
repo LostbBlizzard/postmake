@@ -31,12 +31,19 @@ type Dependsoninfo struct {
 	flagname string
 	value    string
 }
+type CommandInfo struct {
+	cmd        string
+	parameters []string
+}
 type Config struct {
 	os       string
 	arch     string
 	mainfile InputFile
 	files    []InputFile
 	path     []string
+
+	installcmds  []CommandInfo
+	uninstallcmd []CommandInfo
 
 	flags     []Flag
 	enumflags []EnumFlag
@@ -181,6 +188,38 @@ func addconfigfuncions(L *lua.LState, table *lua.LTable, getonconfig func(func(c
 
 		getonconfig(func(config *Config) {
 			config.path = append(config.path, path)
+		})
+
+		return 0
+	}))
+	L.SetField(table, "addinstallcmd", L.NewFunction(func(l *lua.LState) int {
+		cmd := l.ToString(1)
+		tables := l.ToTable(2)
+
+		var pars = make([]string, 0)
+
+		tables.ForEach(func(l1, l2 lua.LValue) {
+			pars = append(pars, l2.String())
+		})
+
+		getonconfig(func(config *Config) {
+			config.installcmds = append(config.installcmds, CommandInfo{cmd: cmd, parameters: pars})
+		})
+
+		return 0
+	}))
+	L.SetField(table, "adduninstallcmd", L.NewFunction(func(l *lua.LState) int {
+		cmd := l.ToString(1)
+		tables := l.ToTable(2)
+
+		var pars = make([]string, 0)
+
+		tables.ForEach(func(l1, l2 lua.LValue) {
+			pars = append(pars, l2.String())
+		})
+
+		getonconfig(func(config *Config) {
+			config.uninstallcmd = append(config.uninstallcmd, CommandInfo{cmd: cmd, parameters: pars})
 		})
 
 		return 0
@@ -363,6 +402,31 @@ func StringArrayEquals(a []Dependsoninfo, b []Dependsoninfo) bool {
 	return true
 }
 
+func CmdArrayToLua(l *lua.LState, list []CommandInfo) lua.LValue {
+	r := l.NewTable()
+
+	for i, element := range list {
+		tableelement := l.NewTable()
+
+		l.SetField(tableelement, "cmd", l.NewFunction(func(l *lua.LState) int {
+			l.Push(lua.LString(element.cmd))
+			return 1
+
+		}))
+
+		l.SetField(tableelement, "pars", l.NewFunction(func(l *lua.LState) int {
+			parslist := l.NewTable()
+			for i, element := range element.parameters {
+				l.RawSetInt(parslist, i+1, lua.LString(element))
+			}
+			l.Push(parslist)
+			return 1
+		}))
+		l.RawSetInt(r, i+1, tableelement)
+	}
+
+	return r
+}
 func makeposttableconfig(l *lua.LState, table lua.LValue, configdata Config) {
 	filestable := l.NewTable()
 
@@ -446,6 +510,9 @@ func makeposttableconfig(l *lua.LState, table lua.LValue, configdata Config) {
 		newtableenumflags.RawSetInt(i+1, tableelement)
 	}
 	l.SetField(table, "enumflags", newtableenumflags)
+
+	l.SetField(table, "installcmds", CmdArrayToLua(l, configdata.installcmds))
+	l.SetField(table, "uninstallcmds", CmdArrayToLua(l, configdata.uninstallcmd))
 
 }
 func RunScript(input ScriptRunerInput) {

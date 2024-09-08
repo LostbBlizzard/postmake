@@ -23,7 +23,8 @@ local ContextBasedDefaultsSettinsList =
 {
 	"DefaultGroupName",
 	"OutputBaseFilename",
-	"AppId"
+	"AppId",
+	"LaunchProgram"
 }
 
 function build.make(postmake, configs, settings)
@@ -214,6 +215,37 @@ function build.make(postmake, configs, settings)
 
 	makecodesecion(config)
 
+	local hasrunsection = #config.installcmds ~= 0 or settings.LaunchProgram ~= nil
+	local hasuninstallsection = #config.uninstallcmds ~= 0
+
+	if hasrunsection then
+		outputfile:write("\n[Run]\n")
+		if settings.LaunchProgram ~= nil then
+			outputfile:write("Filename: \"" .. util.postmakepathtoinnoapppath(settings.LaunchProgram) ..
+				"\"; Description: \"{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}\"; Flags: nowait postinstall skipifsilent\n")
+		end
+
+		for _, cmd in ipairs(config.installcmds) do
+			outputfile:write("Filename: \"" ..
+				util.postmakepathtoinnoapppathcmd(cmd.cmd()) .. "\"; Parameters: ")
+			for _, item in ipairs(cmd.pars()) do
+				outputfile:write("\"" .. util.postmakepathtoinnoapppathcmd(item) .. "\"")
+			end
+			outputfile:write("\n")
+		end
+	end
+
+	if hasuninstallsection then
+		outputfile:write("\n[UninstallRun]\n")
+		for _, cmd in ipairs(config.uninstallcmds) do
+			outputfile:write("Filename: \"" ..
+				util.postmakepathtoinnoapppathcmd(cmd.cmd()) .. "\"; Parameters: ")
+			for _, item in ipairs(cmd.pars()) do
+				outputfile:write("\"" .. util.postmakepathtoinnoapppathcmd(item) .. "\"")
+			end
+			outputfile:write("\n")
+		end
+	end
 	outputfile:close()
 end
 
