@@ -26,4 +26,7 @@ mac.addfile("./output/postmake_macos", postmake.installdir() .. postmake.appname
 all.If(testflag).addpath(postmake.installdir())
 
 postmake.make(shellscript, { gnu, mac }, { weburl = "https//dot.com", uploaddir = "./output/upload/" });
-postmake.make(innosetup, { win }, { AppId = "abcd", LaunchProgram = winsmainprogram });
+postmake.make(innosetup, { win }, {
+	AppId = "x1miKP6buq3AuaLlXa7jsDZnMpPYz3vYm8dSJZyMcahk3A3AlNAJYFuXlfFJXbXemGeEoMBwvZi",
+	LaunchProgram = winsmainprogram
+});

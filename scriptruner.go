@@ -113,7 +113,7 @@ func makepostbuildforplugin(l *lua.LState, oldpostbuild lua.LTable, oldcontext *
 	return postbuilde
 }
 
-func checkErr(err error) {
+func CheckErr(err error) {
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -126,9 +126,9 @@ func addutills(l *lua.LState, table *lua.LTable) {
 		output := l.ToString(2)
 
 		data, err := ioutil.ReadFile(input)
-		checkErr(err)
+		CheckErr(err)
 		err = ioutil.WriteFile(output, data, 0644)
-		checkErr(err)
+		CheckErr(err)
 		return 0
 	}))
 	l.SetField(ostable, "mkdir", l.NewFunction(func(l *lua.LState) int {
