@@ -91,10 +91,6 @@ func makepostbuildforplugin(l *lua.LState, oldpostbuild lua.LTable, oldcontext *
 		l.Push(l.GetField(&oldpostbuild, "applicensefile"))
 		return 1
 	}))
-	l.SetField(postbuilde, "appid", l.NewFunction(func(l *lua.LState) int {
-		l.Push(l.GetField(&oldpostbuild, "appid"))
-		return 1
-	}))
 	l.SetField(postbuilde, "appinstalldir", l.NewFunction(func(l *lua.LState) int {
 		l.Push(l.GetField(&oldpostbuild, "appinstalldir"))
 		return 1
@@ -473,7 +469,6 @@ func RunScript(input ScriptRunerInput) {
 	L.SetField(postmaketable, "apppublisher", lua.LString("publisher"))
 	L.SetField(postmaketable, "appwebsite", lua.LString("https://github.com/LostbBlizzard/postmake"))
 	L.SetField(postmaketable, "applicensefile", lua.LString(""))
-	L.SetField(postmaketable, "appid", lua.LString(""))
 	L.SetField(postmaketable, "appinstalldir", lua.LString(LUAHOMEDir+"app"))
 
 	L.SetField(postmaketable, "output", lua.LString("install-"+CLI.Build.Target))

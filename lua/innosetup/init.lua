@@ -22,31 +22,32 @@ local OptionalInnoSettinsList =
 local ContextBasedDefaultsSettinsList =
 {
 	"DefaultGroupName",
-	"OutputBaseFilename"
+	"OutputBaseFilename",
+	"AppId"
 }
 
 function build.make(postmake, configs, settings)
 	--- Boring checks
 	if #configs ~= 1 then
 		print("innoSetup only allows one windows config." .. #configs .. " was given")
-		exit(1)
+		os.exit(1)
 	end
 
 	config = configs[1]
 
 	if config == nil then
 		print("config is nil")
-		exit(1)
+		os.exit(1)
 	end
 
 	if config.os() ~= "windows" then
 		print("config os is not windows innoSetup only allows to .iss make for windows")
-		exit(1)
+		os.exit(1)
 	end
 
-	if postmake.appid() == "" then
-		print("Set the appid varable on the postmake object")
-		exit(1)
+	if settings.AppId == nil then
+		print("Set the Missing AppId varable on the settings object")
+		os.exit(1)
 	end
 
 	--- checking settings
@@ -98,7 +99,7 @@ function build.make(postmake, configs, settings)
 	if goterrorinsettings then
 		print(
 			"\nCheck the Inno Setup Docs https://jrsoftware.org/ishelp/index.php?topic=iconssection\nif The setting exist help add it on https://github.com/LostbBlizzard/postmake\n\n")
-		exit(1)
+		os.exit(1)
 	end
 	--- end of boring checks
 
@@ -132,7 +133,7 @@ function build.make(postmake, configs, settings)
 	outputfile:write("; (To generate a new GUID, click Tools | Generate GUID inside the IDE.)\n")
 
 
-	outputfile:write("AppId={{" .. postmake.appid() .. "}\n")
+	outputfile:write("AppId={{" .. settings.AppId .. "}\n")
 	outputfile:write("AppName={#MyAppName}\n")
 	outputfile:write("AppVersion={#MyAppVersion}\n")
 	outputfile:write("AppVerName={#MyAppName} {#MyAppVersion}\n")

@@ -12,7 +12,7 @@ function ostounname(oosname)
 		return "Darwin"
 	else
 		print("unable convert '" .. oosname .. "' to then unix uname string")
-		exit(1)
+		os.exit(1)
 	end
 end
 
@@ -25,7 +25,7 @@ function archtounname(archtype)
 		return "arm64"
 	else
 		print("unable convert '" .. archtype .. "' to then unix uname machine type string")
-		exit(1)
+		os.exit(1)
 	end
 end
 
@@ -68,7 +68,7 @@ function build.make(postmake, configs, settings)
 	--- Boring checks
 	if settings.weburl == nil then
 		print("error settings must have the 'weburl' field set")
-		exit(1)
+		os.exit(1)
 	end
 	goterrorinsettings = false
 	for key, _ in pairs(settings) do
@@ -98,7 +98,7 @@ function build.make(postmake, configs, settings)
 			end
 		end
 		print(" to be in the setting")
-		exit(1)
+		os.exit(1)
 	end
 
 
@@ -233,7 +233,7 @@ function build.make(postmake, configs, settings)
 
 		if config.os() == "windows" then
 			print("error cant use config with os set the windows")
-			exit(1)
+			os.exit(1)
 		end
 		outputfile:write(" [ \"$(uname)\" = \"" ..
 			ostounname(config.os()) ..
