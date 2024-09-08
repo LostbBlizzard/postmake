@@ -1,12 +1,11 @@
 local build = {}
 
-
-function postmakepathtoinnopath(path)
-	return "{%USERPROFILE}\\" .. path
-end
+-- using postmake require and not built in require because we are using go:embed and not a real file
+local util = postmake.require("./util.lua")
+local makecodesecion = postmake.require("./secions/code.lua")
 
 -- Theres more but I wil add them when I Need them.
-DefaultInnoSettinsList =
+local DefaultInnoSettinsList =
 {
 	DisableDirPage = "yes",
 	DisableProgramGroupPage = "yes",
@@ -15,23 +14,16 @@ DefaultInnoSettinsList =
 	WizardStyle = "modern",
 	PrivilegesRequired = "lowest"
 }
-OptionalInnoSettinsList =
+local OptionalInnoSettinsList =
 {
 	"SetupIconFile",
 	"WizardStyle"
 }
-ContextBasedDefaultsSettinsList =
+local ContextBasedDefaultsSettinsList =
 {
 	"DefaultGroupName",
 	"OutputBaseFilename"
 }
-function UseOrDefault(field, default)
-	if field == nil then
-		return default
-	else
-		return field
-	end
-end
 
 function build.make(postmake, configs, settings)
 	--- Boring checks
@@ -111,8 +103,8 @@ function build.make(postmake, configs, settings)
 	--- end of boring checks
 
 	--- InnoSettings with context based Defaults
-	Inno_DefaultGroupName = UseOrDefault(settings.DefaultGroupName, postmake.appname())
-	Inno_OutputBaseFilename = UseOrDefault(settings.OutputBaseFilename, postmake.appname() .. "Setup")
+	Inno_DefaultGroupName = util.UseOrDefault(settings.DefaultGroupName, postmake.appname())
+	Inno_OutputBaseFilename = util.UseOrDefault(settings.OutputBaseFilename, postmake.appname() .. "Setup")
 	---
 	print("---building inno script")
 
@@ -149,29 +141,46 @@ function build.make(postmake, configs, settings)
 	outputfile:write("AppSupportURL={#MyAppURL}\n")
 	outputfile:write("AppUpdatesURL={#MyAppURL}\n")
 
-	outputfile:write("DefaultDirName=" .. postmakepathtoinnopath(postmake.appinstalldir()) .. "\n")
+	outputfile:write("DefaultDirName=" .. util.postmakepathtoinnopath(postmake.appinstalldir()) .. "\n")
 	outputfile:write("DefaultGroupName=" .. Inno_DefaultGroupName .. "\n")
 
 	if postmake.applicensefile() == nil then
 		outputfile:write("LicenseFile= \"" .. postmake.applicensefile() .. "\"\n")
 	end
 
-	outputfile:write("OutputBaseFilename=" .. Inno_OutputBaseFilename .. "\n\n")
+	outputfile:write("OutputBaseFilename=" .. Inno_OutputBaseFilename .. "\n")
 
 
 	local hasaddeddefault = false
 	for key, value in pairs(settings) do
-		for _, SettingName in ipairs(DefaultInnoSettinsList) do
+		for SettingName, _ in pairs(DefaultInnoSettinsList) do
 			if key == SettingName then
 				if hasaddeddefault == false then
-					outputfile:write("; Boring Default Settins \n")
+					outputfile:write("; Boring Default Settings \n")
 				end
 				outputfile:write(key .. "=" .. value .. "\n")
+				hasaddeddefault = true
 				break
 			end
 		end
 	end
 
+	for SettingName, Value in pairs(DefaultInnoSettinsList) do
+		local hassetting = false
+		for key, _ in pairs(settings) do
+			if key == SettingName then
+				hassetting = true
+				break
+			end
+		end
+		if not hassetting then
+			if hasaddeddefault == false then
+				outputfile:write("; Boring Default Settings \n")
+			end
+			outputfile:write(SettingName .. "=" .. Value .. "\n")
+			hasaddeddefault = true
+		end
+	end
 	local hasaddedoptional = false
 	for key, value in pairs(settings) do
 		for _, SettingName in ipairs(OptionalInnoSettinsList) do
@@ -192,13 +201,18 @@ function build.make(postmake, configs, settings)
 	outputfile:write("\n[Files]\n")
 	for input, output in pairs(config.files) do
 		local reltoinnofile = input
-		local newout = postmakepathtoinnopath(output)
+		local newout = util.getdir(util.postmakepathtoinnoapppath(output))
 		outputfile:write("Source: \"" .. reltoinnofile .. "\"; DestDir: \"" .. newout .. "\";\n")
 	end
 
-	for _, path in ipairs(config.paths) do
-		print(path)
+	outputfile:write("\n[Tasks]\n")
+	for _, flag in ipairs(config.flags) do
+		outputfile:write("Name: " ..
+			util.flagnametovarable(flag.flagname()) .. "; Description: \"" .. flag.flagname() .. "\"\n")
 	end
+
+	makecodesecion(config)
+
 	outputfile:close()
 end
 

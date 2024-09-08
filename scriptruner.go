@@ -57,9 +57,10 @@ type EnumFlag struct {
 	DefaultValue string
 }
 type PreBuildContext struct {
-	target        string
-	loadedplugins map[string]Loadedplugin
-	configs       []Config
+	target         string
+	loadedplugins  map[string]Loadedplugin
+	pluginsrequres map[string]lua.LValue
+	configs        []Config
 
 	tabletoconfig map[*lua.LTable]int
 }
@@ -458,9 +459,10 @@ func RunScript(input ScriptRunerInput) {
 	log := log.New(os.Stderr, "", 0)
 
 	prebuild := PreBuildContext{
-		target:        CLI.Build.Target,
-		loadedplugins: make(map[string]Loadedplugin),
-		tabletoconfig: make(map[*lua.LTable]int),
+		target:         CLI.Build.Target,
+		loadedplugins:  make(map[string]Loadedplugin),
+		tabletoconfig:  make(map[*lua.LTable]int),
+		pluginsrequres: make(map[string]lua.LValue),
 	}
 
 	postmaketable := L.NewTable()
@@ -564,6 +566,8 @@ func RunScript(input ScriptRunerInput) {
 		l.Push(val)
 		return 1
 	}))
+
+	currentplugin := ""
 	L.SetField(postmaketable, "loadplugin", L.NewFunction(func(l *lua.LState) int {
 		pluginpath := l.ToString(1)
 
@@ -575,13 +579,15 @@ func RunScript(input ScriptRunerInput) {
 
 			if strings.HasPrefix(pluginpath, "internal/") {
 				pluginname := pluginpath[len("internal/"):]
-
 				data, err := InternalPlugins.ReadFile("lua/" + pluginname + "/init.lua")
 				if err != nil {
 					l.RaiseError("unable to read plugin %s init.lua [%s]", pluginpath, err.Error())
 				}
 
+				currentplugin = "lua/" + pluginname
 				err = l.DoString(string(data))
+				currentplugin = ""
+
 				if err != nil {
 					l.RaiseError("plugin %s failed to load \n\n\n %s", pluginpath, err.Error())
 				}
@@ -589,7 +595,6 @@ func RunScript(input ScriptRunerInput) {
 				l.Pop(1)
 
 				prebuild.loadedplugins[pluginpath] = Loadedplugin{table: ret}
-
 				l.Push(ret)
 				return 1
 			} else {
@@ -597,6 +602,42 @@ func RunScript(input ScriptRunerInput) {
 			}
 		}
 		return 0
+	}))
+	L.SetField(postmaketable, "require", L.NewFunction(func(l *lua.LState) int {
+		filepath := l.ToString(1)
+
+		if strings.HasPrefix(filepath, "./") {
+			filepath = filepath[len("."):]
+		} else {
+			filepath = "/" + filepath
+		}
+
+		newpath := currentplugin + filepath
+
+		value, ok := prebuild.pluginsrequres[newpath]
+
+		if ok {
+			l.Push(value)
+			return 1
+		}
+
+		data, err := InternalPlugins.ReadFile(newpath)
+		if err != nil {
+			l.RaiseError("unable to read plugin file '%s' [%s]", newpath, err.Error())
+		}
+
+		err = l.DoString(string(data))
+		if err != nil {
+			l.RaiseError("unable to read plugin %s init.lua [%s]", newpath, err.Error())
+		}
+
+		ret := l.Get(-1)
+		l.Pop(1)
+
+		prebuild.pluginsrequres[newpath] = ret
+
+		l.Push(ret)
+		return 1
 	}))
 	L.SetField(postmaketable, "make", L.NewFunction(func(l *lua.LState) int {
 		builder := l.ToTable(1)
