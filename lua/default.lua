@@ -30,7 +30,7 @@ local mac = postmake.newconfig("macos", "x64")
 
 --- Add Your files
 
-local winsmainprogram = postmake.installdir() .. "./" .. postmake.appname + ".exe"
+local winsmainprogram = postmake.installdir() .. "./" .. postmake.appname .. ".exe"
 
 win.addfile("main.exe", winsmainprogram)
 gnu.addfile("main", postmake.installdir() .. "./" .. postmake.appname)

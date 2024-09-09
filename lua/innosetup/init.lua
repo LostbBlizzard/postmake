@@ -130,12 +130,12 @@ function build.make(postmake, configs, settings)
 
 	outputfile:write("#define MyAppName \"" .. util.UseOrDefault(postmake.MyAppVersion, postmake.appname()) .. "\"\n")
 	outputfile:write("#define MyAppVersion \"" ..
-	util.UseOrDefault(postmake.MyAppVersion, postmake.appversion()) .. "\"\n")
+		util.UseOrDefault(postmake.MyAppVersion, postmake.appversion()) .. "\"\n")
 	outputfile:write("#define MyAppPublisher \"" ..
-	util.UseOrDefault(postmake.MyAppPublisher, postmake.apppublisher()) .. "\"\n")
+		util.UseOrDefault(postmake.MyAppPublisher, postmake.apppublisher()) .. "\"\n")
 	outputfile:write("#define MyAppURL \"" .. util.UseOrDefault(settings.MyAppURL, postmake.appwebsite()) .. "\"\n")
 	outputfile:write("#define MyAppExeName \"" ..
-		util.UseOrDefault(settings.MyAppExeName, postmake.appname() + ".exe") .. "\"\n\n")
+		util.UseOrDefault(settings.MyAppExeName, postmake.appname() .. ".exe") .. "\"\n\n")
 
 	outputfile:write("[Setup]\n")
 	outputfile:write(
