@@ -15,7 +15,7 @@ local function has_value(tab, val)
 
 	return false
 end
-return function(config)
+return function(outputfile, config)
 	local hasaddpath = true
 	outputfile:write("\n[Code]\n")
 

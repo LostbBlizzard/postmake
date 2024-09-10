@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"strings"
 	"time"
@@ -48,7 +47,7 @@ func main() {
 		data, err := InternalPlugins.ReadFile("lua/default.lua")
 		CheckErr(err)
 		newstr := strings.ReplaceAll(string(data), "###{INNOAPPID}###", GenerateNewInnoID())
-		err = ioutil.WriteFile(CLI.Init.Output, []byte(newstr), 0644)
+		err = os.WriteFile(CLI.Init.Output, []byte(newstr), 0644)
 		CheckErr(err)
 	case "generate-inno-id":
 		fmt.Println(GenerateNewInnoID())

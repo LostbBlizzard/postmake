@@ -3,7 +3,6 @@ package main
 import (
 	"embed"
 	"errors"
-	"io/ioutil"
 	"log"
 	"os"
 	"strings"
@@ -73,7 +72,7 @@ type PreBuildContext struct {
 const LuaiNSTALLdIR = "/"
 const LUAHOMEDir = "~/"
 
-func makepostbuildforplugin(l *lua.LState, oldpostbuild lua.LTable, oldcontext *PreBuildContext) *lua.LTable {
+func makepostbuildforplugin(l *lua.LState, oldpostbuild lua.LTable, _ *PreBuildContext) *lua.LTable {
 	postbuilde := l.NewTable()
 
 	l.SetField(postbuilde, "appname", l.NewFunction(func(l *lua.LState) int {
@@ -125,9 +124,9 @@ func addutills(l *lua.LState, table *lua.LTable) {
 		input := l.ToString(1)
 		output := l.ToString(2)
 
-		data, err := ioutil.ReadFile(input)
+		data, err := os.ReadFile(input)
 		CheckErr(err)
-		err = ioutil.WriteFile(output, data, 0644)
+		err = os.WriteFile(output, data, 0644)
 		CheckErr(err)
 		return 0
 	}))

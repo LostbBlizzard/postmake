@@ -1,11 +1,11 @@
 local build = {}
 
 
-function resolveoutputpath(path)
+local function resolveoutputpath(path)
 	return "$Installdir" .. path
 end
 
-function ostounname(oosname)
+local function ostounname(oosname)
 	if oosname == "linux" then
 		return "Linux"
 	elseif oosname == "macos" then
@@ -16,7 +16,7 @@ function ostounname(oosname)
 	end
 end
 
-function archtounname(archtype)
+local function archtounname(archtype)
 	if archtype == "x64" then
 		return "x86_64"
 	elseif archtype == "x32" then
@@ -29,11 +29,11 @@ function archtounname(archtype)
 	end
 end
 
-function stringtoshellsrciptvarable(varablename)
+local function stringtoshellsrciptvarable(varablename)
 	return "var" .. varablename:gsub(" ", "_")
 end
 
-function booltoyesorno(bool)
+local function booltoyesorno(bool)
 	if bool then
 		return "yes"
 	else
@@ -41,13 +41,13 @@ function booltoyesorno(bool)
 	end
 end
 
-AllowedSettingsFields =
+local AllowedSettingsFields =
 {
 	"weburl",
 	"uploaddir"
 }
 
-function onconfig(outputfile, config, weburl, uploaddir)
+local function onconfig(outputfile, config, weburl, uploaddir)
 	for input, output in pairs(config.files) do
 		local newout = resolveoutputpath(output)
 		outputfile:write("curl -LJ " .. weburl .. output .. " -o " .. newout .. "\n\n")
@@ -70,7 +70,7 @@ function build.make(postmake, configs, settings)
 		print("error settings must have the 'weburl' field set")
 		os.exit(1)
 	end
-	goterrorinsettings = false
+	local goterrorinsettings = false
 	for key, _ in pairs(settings) do
 		local issettingallowed = false
 
@@ -141,7 +141,11 @@ function build.make(postmake, configs, settings)
 	print("writing install file to " .. outputpath)
 
 
-	outputfile = io.open(outputpath, "w")
+	local outputfile = io.open(outputpath, "w")
+	if outputfile == nil then
+		print("unable to open file '" .. outputpath .. "'")
+		os.exit(1)
+	end
 
 	outputfile:write("#!/usr/bin/env bash\n")
 	outputfile:write("set -e\n")
@@ -223,17 +227,19 @@ function build.make(postmake, configs, settings)
 
 	outputfile:write("\n")
 
-	if configindex ~= 0 then
-		outputfile:write("\n")
-		outputfile:write("if ")
-	end
 
 	for configindex, config in ipairs(configs) do
 		local islast = configindex == #configs
 
+
 		if config.os() == "windows" then
 			print("error cant use config with os set the windows")
 			os.exit(1)
+		end
+
+		if configindex ~= 0 then
+			outputfile:write("\n")
+			outputfile:write("if ")
 		end
 		outputfile:write(" [ \"$(uname)\" = \"" ..
 			ostounname(config.os()) ..
