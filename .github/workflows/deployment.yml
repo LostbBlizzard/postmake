@@ -27,11 +27,8 @@ jobs:
 
     - name: Build Installer
       run: make
-
-    - name: Set up GitHub CLI
-      uses: cli/cli-action@v2
-      with:
-        github_token: ${{ secrets.GITHUB_TOKEN }}
+      env:
+        POSTMAKEVERSION: ${{ github.event.inputs.VersionNumber }}
 
     - name: Upload release artifacts
       uses: actions/upload-artifact@v3
@@ -41,15 +38,51 @@ jobs:
 
     - name: Create a release
       id: create_release
-      run: |
-        tag=$(echo "${GITHUB_REF#refs/tags/}")
-        gh release create "$tag" ./output/release/* --title "$tag" --notes "Release $tag"
+      run: gh release create "Release-${{ github.event.inputs.VersionNumber }}" ./output/upload/* --title "$tag" --notes "$(cat changelog.md)"
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Upload release assets
       run: |
-        tag=$(echo "${GITHUB_REF#refs/tags/}")
-        gh release upload "$tag" ./output/release/*
+         gh release upload "Release-${{ github.event.inputs.VersionNumber }}" ./output/install.sh
       env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Archive Output
+      uses: actions/upload-artifact@v4
+      with:
+         name: install.iss
+         path: output/install.iss
+         retention-days: 1  
+
+    - name: Archive Output 2
+      uses: actions/upload-artifact@v4
+      with:
+         name: postmake.exe
+         path: output/postmake.exe
+         retention-days: 1  
+
+  build-inno:
+    needs: [ build ]
+    runs-on: windows-latest
+    steps:
+     - uses: actions/checkout@v4 # Only here for gh release
+
+     - uses: actions/download-artifact@v4
+       with:
+        name: postmake.exe
+        path: output
+
+     - uses: actions/download-artifact@v4
+       with:
+        name: install.iss
+      
+     - name: Compile .ISS to .EXE Installer
+       uses: Minionguyjpro/Inno-Setup-Action@v1.2.2
+       with:
+          path: ./install.iss
+
+     - name: Upload release assets
+       run: gh release upload "Release-${{ github.event.inputs.VersionNumber}}" ./output/postmakeSetup.exe
+       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
