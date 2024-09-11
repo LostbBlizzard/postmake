@@ -1,5 +1,6 @@
 local innosetup = postmake.loadplugin("internal/innosetup")
 local shellscript = postmake.loadplugin("internal/shellscript")
+local githubaction = postmake.loadplugin("internal/githubaction")
 
 -- App Settings
 postmake.appname = "postmake"
@@ -13,7 +14,7 @@ local all = postmake.allconfig
 --- Configs
 local win = postmake.newconfig("windows", "x64")
 local gnu = postmake.newconfig("linux", "x64")
-local mac = postmake.newconfig("macos", "x64")
+local mac = postmake.newconfig("macos", "arm64")
 
 --- flags
 local testflag = all.newflag("Add Path", true)
@@ -25,8 +26,11 @@ mac.addfile("./output/postmake_macos", postmake.installdir() .. postmake.appname
 
 all.If(testflag).addpath(postmake.installdir())
 
-postmake.make(shellscript, { gnu, mac }, { weburl = "https//dot.com", uploaddir = "./output/upload/" });
+local installwebsite = "https//dot.com"
+
+postmake.make(shellscript, { gnu, mac }, { weburl = installwebsite, uploaddir = "./output/upload/" });
 postmake.make(innosetup, { win }, {
 	AppId = "x1miKP6buq3AuaLlXa7jsDZnMpPYz3vYm8dSJZyMcahk3A3AlNAJYFuXlfFJXbXemGeEoMBwvZi",
 	LaunchProgram = winsmainprogram
 });
+postmake.make(githubaction, { win, gnu, mac }, { weburl = installwebsite });

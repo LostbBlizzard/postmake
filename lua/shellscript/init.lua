@@ -47,19 +47,77 @@ local AllowedSettingsFields =
 	"uploaddir"
 }
 
-local function onconfig(outputfile, config, weburl, uploaddir)
+local function has_value_map(tab, val)
+	for _, value in pairs(tab) do
+		if value == val then
+			return true
+		end
+	end
+
+	return false
+end
+local function has_value(tab, val)
+	for _, value in ipairs(tab) do
+		if value == val then
+			return true
+		end
+	end
+
+	return false
+end
+local function has_key_map(tab, val)
+	for key, _ in pairs(tab) do
+		if key == val then
+			return true
+		end
+	end
+
+	return false
+end
+
+local function get_file_name(file)
+	return file:match("^.+/(.+)$")
+end
+
+local function GetUploadfilePath(input, uploadfilecontext, onadded)
+	local newfilename = ""
+	if not has_key_map(uploadfilecontext, input) then
+		newfilename = input
+		if has_value_map(uploadfilecontext, newfilename) then
+			newfilename = input .. "1"
+		end
+
+		newfilename = get_file_name(newfilename)
+		uploadfilecontext[input] = newfilename
+
+		if onadded ~= nil then
+			onadded(input, newfilename)
+		end
+	else
+		newfilename = get_file_name(uploadfilecontext[input])
+	end
+	return newfilename
+end
+local function onconfig(outputfile, config, weburl, uploaddir, uploadfilecontext)
 	for input, output in pairs(config.files) do
 		local newout = resolveoutputpath(output)
-		outputfile:write("curl -LJ " .. weburl .. output .. " -o " .. newout .. "\n\n")
 
-		if uploaddir ~= nil then
-			postmake.os.cp(input, uploaddir .. "/" .. output)
-		end
+		local newfilename = GetUploadfilePath(input, uploadfilecontext, function(input, newfilename)
+			if uploaddir ~= nil then
+				postmake.os.cp(input, uploaddir .. newfilename)
+			end
+		end)
+
+		outputfile:write("curl -LJ " .. weburl .. "/" .. newfilename .. " -o " .. newout .. "\n\n")
 	end
 
 	for _, output in pairs(config.paths) do
 		outputfile:write("AddPath " .. resolveoutputpath(output) .. " \n")
 	end
+end
+
+function build.GetUploadfilePath(input, uploadfilecontext, onadded)
+	return GetUploadfilePath(input, uploadfilecontext, onadded)
 end
 
 function build.make(postmake, configs, settings)
@@ -303,8 +361,9 @@ function build.make(postmake, configs, settings)
 
 		outputfile:write("\n")
 
+		local uploadfilecontext = {}
 
-		onconfig(outputfile, config, weburl, uploaddir)
+		onconfig(outputfile, config, weburl, uploaddir, uploadfilecontext)
 
 		for _, output in ipairs(config.ifs) do
 			local isfirstiniflistloop = true
@@ -330,7 +389,7 @@ function build.make(postmake, configs, settings)
 			end
 			outputfile:write("\nthen\n\n")
 
-			onconfig(outputfile, output, weburl, uploaddir)
+			onconfig(outputfile, output, weburl, uploaddir, uploadfilecontext)
 
 			outputfile:write("\nfi\n\n")
 		end
