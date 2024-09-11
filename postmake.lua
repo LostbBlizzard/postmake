@@ -2,9 +2,15 @@ local innosetup = postmake.loadplugin("internal/innosetup")
 local shellscript = postmake.loadplugin("internal/shellscript")
 local githubaction = postmake.loadplugin("internal/githubaction")
 
+local appversionenv = os.getenv("POSTMAKEVERSION")
 -- App Settings
 postmake.appname = "postmake"
 postmake.appversion = "0.0.1"
+
+if appversionenv ~= nil then
+	postmake.appversion = appversionenv
+end
+
 postmake.appinstalldir = "~/.postmake"
 
 postmake.output = "./output/install"
@@ -26,7 +32,7 @@ mac.addfile("./output/postmake_macos", postmake.installdir() .. postmake.appname
 
 all.If(testflag).addpath(postmake.installdir())
 
-local installwebsite = "https//dot.com"
+local installwebsite = "https://github.com/LostbBlizzard/postmake/releases/tag/Release-" .. postmake.appversion
 
 postmake.make(shellscript, { gnu, mac }, { weburl = installwebsite, uploaddir = "./output/upload/" });
 postmake.make(innosetup, { win }, {
