@@ -62,6 +62,13 @@ jobs:
          path: output/postmake.exe
          retention-days: 1  
 
+    - name: Upload github repo
+      uses: actions/upload-artifact@v4
+      id: Upload github repo
+      with:
+        name: actionrepo
+        path: ./output/install/githubaction/ 
+
   build-inno:
     needs: [ build ]
     runs-on: windows-latest
@@ -86,3 +93,31 @@ jobs:
        run: gh release upload "Release-${{ github.event.inputs.VersionNumber}}" ./output/postmakeSetup.exe
        env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  update-action-repo:
+    needs: [ build ]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: 'https://github.com/LostbBlizzard/postmake-action'
+          ref: 'master'
+          token:  ${{ secrets.ACTION_REPO_TOKEN }}
+
+      - name: Setup git config
+        run: |
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "<>"
+
+      - name: Download generated template
+        uses: actions/download-artifact@v4
+        with:
+          name: actionrepo
+
+      - name: Commit and push generated template
+        run: |
+          export COMMIT_MESSAGE="Generated from ${{ github.repository }}/${{ github.ref}}@${{ github.sha }}"
+          git add .
+          git commit -m "$COMMIT_MESSAGE"
+          git pus
+
