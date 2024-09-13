@@ -64,7 +64,6 @@ jobs:
 
     - name: Upload github repo
       uses: actions/upload-artifact@v4
-      id: Upload github repo
       with:
         name: actionrepo
         path: ./output/install/githubaction/ 
