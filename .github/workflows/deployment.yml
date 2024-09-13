@@ -99,7 +99,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          repository: 'https://github.com/LostbBlizzard/postmake-action'
+          repository: 'LostbBlizzard/postmake-action'
           ref: 'master'
           token:  ${{ secrets.ACTION_REPO_TOKEN }}
 
