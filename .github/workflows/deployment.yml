@@ -119,5 +119,5 @@ jobs:
           export COMMIT_MESSAGE="Generated from ${{ github.repository }}/${{ github.ref}}@${{ github.sha }}"
           git add .
           git commit -m "$COMMIT_MESSAGE"
-          git pus
+          git push
 
