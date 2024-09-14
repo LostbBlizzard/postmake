@@ -8,6 +8,8 @@ import (
 
 	"github.com/alecthomas/kong"
 	"golang.org/x/exp/rand"
+
+	"postmake/utils"
 )
 
 var CLI struct {
@@ -45,10 +47,10 @@ func main() {
 	switch ctx.Command() {
 	case "init":
 		data, err := InternalPlugins.ReadFile("lua/default.lua")
-		CheckErr(err)
+		utils.CheckErr(err)
 		newstr := strings.ReplaceAll(string(data), "###{INNOAPPID}###", GenerateNewInnoID())
 		err = os.WriteFile(CLI.Init.Output, []byte(newstr), 0644)
-		CheckErr(err)
+		utils.CheckErr(err)
 	case "generate-inno-id":
 		fmt.Println(GenerateNewInnoID())
 	case "build":
