@@ -215,7 +215,9 @@ function build.make(postmake, configs, settings)
 	outputfile:write("Name: \"english\"; MessagesFile: \"compiler:Default.isl\"\n")
 
 	outputfile:write("\n[Files]\n")
-	for input, output in pairs(config.files) do
+	for inputval, output in pairs(config.files) do
+		local input = inputval.string
+
 		local reltoinnofile = input
 		local newout = util.getdir(util.postmakepathtoinnoapppath(output))
 		outputfile:write("Source: \"" .. reltoinnofile .. "\"; DestDir: \"" .. newout .. "\";\n")

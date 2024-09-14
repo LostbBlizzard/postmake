@@ -43,14 +43,16 @@ local function archtonodearch(arch)
 	end
 end
 local function onconfig(myindent, outputfile, config, weburl, uploaddir, uploadfilecontext)
-	for input, output in pairs(config.files) do
+	for inputtable, output in pairs(config.files) do
+		local input = inputtable.string
 		local newout = resolveoutputpath(output)
 
-		local newfilename = shellscript.GetUploadfilePath(input, uploadfilecontext, function(input, newfilename)
-			if uploaddir ~= nil then
-				postmake.os.cp(input, uploaddir .. newfilename)
-			end
-		end)
+		local newfilename = shellscript.GetUploadfilePath(input, uploadfilecontext,
+			function(input, newfilename)
+				if uploaddir ~= nil then
+					postmake.os.cp(input, uploaddir .. newfilename)
+				end
+			end)
 
 		outputfile:write(myindent ..
 			"downloadfile(\"" .. weburl .. "/" .. newfilename .. "\",\"" .. newout .. "\");\n\n")

@@ -112,7 +112,8 @@ local function onconfig(outputfile, config, weburl, uploaddir, uploadfilecontext
 			end)
 
 
-			outputfile:write("curl -LJ " .. weburl .. "/" .. newfilename .. " -o " .. newout .. "\n\n")
+			outputfile:write("echo 'Downloading " .. get_file_name(newout) .. "'\n")
+			outputfile:write("curl -sSLJ " .. weburl .. "/" .. newfilename .. " -o " .. newout .. "\n\n")
 		else
 			local basepath = postmake.match.getbasepath(input)
 
@@ -134,11 +135,15 @@ local function onconfig(outputfile, config, weburl, uploaddir, uploadfilecontext
 			end
 
 
-			local resolvenewout = resolveoutputpath(output)
-			outputfile:write("curl -LJ " ..
-				weburl .. "/" .. newout .. " -o " .. resolveoutputpath("/" .. newout) .. "\n")
+			local resolvenewout = resolveoutputpath("/" .. newout)
+
+			outputfile:write("echo 'Downloading " .. newout .. "'\n")
+			outputfile:write("curl -sSLJ " ..
+				weburl .. "/" .. newout .. " -o " .. resolvenewout .. "\n")
+
+			outputfile:write("echo 'Unziping " .. newout .. "'\n")
 			outputfile:write("tar -xvzf " ..
-			resolveoutputpath("/" .. newout) .. " -C " .. resolveoutputpath(output) .. "\n\n")
+				resolvenewout .. " -C " .. resolveoutputpath(output) .. "\n\n")
 		end
 	end
 
