@@ -75,26 +75,23 @@ local function has_key_map(tab, val)
 	return false
 end
 
-local function get_file_name(file)
-	return file:match("^.+/(.+)$")
-end
-
 local function GetUploadfilePath(input, uploadfilecontext, onadded)
 	local newfilename = ""
+
 	if not has_key_map(uploadfilecontext, input) then
 		newfilename = input
 		if has_value_map(uploadfilecontext, newfilename) then
 			newfilename = input .. "1"
 		end
 
-		newfilename = get_file_name(newfilename)
+		newfilename = postmake.path.getfilename(newfilename)
 		uploadfilecontext[input] = newfilename
 
 		if onadded ~= nil then
 			onadded(input, newfilename)
 		end
 	else
-		newfilename = get_file_name(uploadfilecontext[input])
+		newfilename = postmake.path.getfilename(uploadfilecontext[input])
 	end
 	return newfilename
 end
@@ -112,7 +109,7 @@ local function onconfig(outputfile, config, weburl, uploaddir, uploadfilecontext
 			end)
 
 
-			outputfile:write("echo 'Downloading " .. get_file_name(newout) .. "'\n")
+			outputfile:write("echo 'Downloading " .. postmake.path.getfilename(newout) .. "'\n")
 			outputfile:write("curl -sSLJ " .. weburl .. "/" .. newfilename .. " -o " .. newout .. "\n\n")
 		else
 			local basepath = postmake.match.getbasepath(input)
@@ -322,6 +319,8 @@ function build.make(postmake, configs, settings)
 	outputfile:write("\n")
 
 
+	local uploadfilecontext = {}
+
 	for configindex, config in ipairs(configs) do
 		local islast = configindex == #configs
 
@@ -396,8 +395,6 @@ function build.make(postmake, configs, settings)
 		end
 
 		outputfile:write("\n")
-
-		local uploadfilecontext = {}
 
 		onconfig(outputfile, config, weburl, uploaddir, uploadfilecontext)
 

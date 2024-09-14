@@ -118,6 +118,7 @@ func addutills(l *lua.LState, table *lua.LTable) {
 	l.SetField(table, "os", luamodule.MakeOsModule(l))
 	l.SetField(table, "match", luamodule.MakeMatchModule(l))
 	l.SetField(table, "archive", luamodule.MakeArchiveModule(l))
+	l.SetField(table, "path", luamodule.MakePathModule(l))
 }
 
 func addconfigfuncions(L *lua.LState, table *lua.LTable, getonconfig func(func(config *Config)), prebuild *PreBuildContext) {

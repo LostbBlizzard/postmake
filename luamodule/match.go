@@ -9,9 +9,12 @@ import (
 	lua "github.com/yuin/gopher-lua"
 )
 
+func isbasicmatchrune(r rune) bool {
+	return unicode.IsLetter(r) || unicode.IsDigit(r) || r == '/' || r == '.' || r == '_'
+}
 func IsBasicMatch(s string) bool {
 	for _, r := range s {
-		if !unicode.IsLetter(r) && !unicode.IsDigit(r) && r != '/' && r != '.' {
+		if !isbasicmatchrune(r) {
 			return false
 		}
 	}
@@ -19,7 +22,7 @@ func IsBasicMatch(s string) bool {
 }
 func GetBasePathFromMatch(s string) (string, string) {
 	for i, r := range s {
-		if !unicode.IsLetter(r) && !unicode.IsDigit(r) && r != '/' && r != '.' {
+		if !isbasicmatchrune(r) {
 			return s[:i], s[i:]
 		}
 	}
