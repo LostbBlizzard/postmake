@@ -1,12 +1,18 @@
 package main
 
 import (
+	"context"
 	"embed"
 	"errors"
+	"io/fs"
 	"log"
 	"os"
+	"path/filepath"
 	"strings"
+	"unicode"
 
+	"github.com/gobwas/glob"
+	"github.com/mholt/archiver/v4"
 	lua "github.com/yuin/gopher-lua"
 )
 
@@ -117,10 +123,92 @@ func CheckErr(err error) {
 		log.Fatal(err)
 	}
 }
-func addutills(l *lua.LState, table *lua.LTable) {
 
-	ostable := l.NewTable()
-	l.SetField(ostable, "cp", l.NewFunction(func(l *lua.LState) int {
+func IsBasicMatch(s string) bool {
+	for _, r := range s {
+		if !unicode.IsLetter(r) && !unicode.IsDigit(r) && r != '/' && r != '.' {
+			return false
+		}
+	}
+	return true
+}
+func GetBasePathFromMatch(s string) (string, string) {
+	for i, r := range s {
+		if !unicode.IsLetter(r) && !unicode.IsDigit(r) && r != '/' && r != '.' {
+			return s[:i], s[i:]
+		}
+	}
+	return s, ""
+}
+func makematchmodule(l *lua.LState) *lua.LTable {
+	table := l.NewTable()
+
+	l.SetField(table, "isbasicmatch", l.NewFunction(func(l *lua.LState) int {
+		regexstring := l.ToString(1)
+		l.Push(lua.LBool(IsBasicMatch(regexstring)))
+		return 1
+	}))
+
+	l.SetField(table, "matchpath", l.NewFunction(func(l *lua.LState) int {
+		regexstring := l.ToString(1)
+		funcioncallback := l.ToFunction(2)
+
+		basepath, regex := GetBasePathFromMatch(regexstring)
+
+		err := filepath.WalkDir(basepath, func(path string, d fs.DirEntry, err error) error {
+			if err != nil {
+				return nil
+			}
+			if !d.IsDir() {
+				glob, err := glob.Compile(regex)
+				value := glob.Match(regex)
+
+				if err != nil {
+					panic(err)
+				}
+
+				if value {
+					l.Push(funcioncallback)
+					l.Push(lua.LString(path))
+					l.PCall(1, 0, nil)
+				}
+			}
+			return nil
+		})
+		if err != nil {
+			panic(err)
+		}
+
+		return 0
+	}))
+	l.SetField(table, "match", l.NewFunction(func(l *lua.LState) int {
+
+		pattenstring := l.ToString(1)
+		tomatchstring := l.ToString(2)
+
+		glob, err := glob.Compile(pattenstring)
+
+		if err != nil {
+			panic(err)
+		}
+		value := glob.Match(tomatchstring)
+
+		l.Push(lua.LBool(value))
+		return 1
+	}))
+	l.SetField(table, "getbasepath", l.NewFunction(func(l *lua.LState) int {
+		matchstring := l.ToString(1)
+		base, _ := GetBasePathFromMatch(matchstring)
+
+		l.Push(lua.LString(base))
+		return 1
+	}))
+	return table
+}
+func makeosmodule(l *lua.LState) *lua.LTable {
+	table := l.NewTable()
+
+	l.SetField(table, "cp", l.NewFunction(func(l *lua.LState) int {
 		input := l.ToString(1)
 		output := l.ToString(2)
 
@@ -130,26 +218,101 @@ func addutills(l *lua.LState, table *lua.LTable) {
 		CheckErr(err)
 		return 0
 	}))
-	l.SetField(ostable, "mkdir", l.NewFunction(func(l *lua.LState) int {
+	l.SetField(table, "mkdir", l.NewFunction(func(l *lua.LState) int {
 		input := l.ToString(1)
 		os.Mkdir(input, os.ModePerm)
 		return 0
 	}))
-	l.SetField(ostable, "mkdirall", l.NewFunction(func(l *lua.LState) int {
+	l.SetField(table, "mkdirall", l.NewFunction(func(l *lua.LState) int {
 		input := l.ToString(1)
 		os.MkdirAll(input, os.ModePerm)
 		return 0
 	}))
-	l.SetField(ostable, "exist", l.NewFunction(func(l *lua.LState) int {
+	l.SetField(table, "exist", l.NewFunction(func(l *lua.LState) int {
+		input := l.ToString(1)
 		ret := true
-		if _, err := os.Stat("/path/to/whatever"); errors.Is(err, os.ErrNotExist) {
+		if _, err := os.Stat(input); errors.Is(err, os.ErrNotExist) {
 			ret = false
 		}
 
 		l.Push(lua.LBool(ret))
 		return 1
 	}))
-	l.SetField(table, "os", ostable)
+
+	return table
+}
+
+func tabletoarray[T any](table *lua.LTable, convertfunc func(item lua.LValue) T) []T {
+	var r = make([]T, 0)
+	table.ForEach(func(l1, l2 lua.LValue) {
+		r = append(r, convertfunc(l2))
+	})
+	return r
+}
+func tabletomap[K comparable, V any](table *lua.LTable, convertfunc func(key lua.LValue, value lua.LValue) (K, V)) map[K]V {
+	var r = make(map[K]V, 0)
+	table.ForEach(func(l1 lua.LValue, l2 lua.LValue) {
+		k, v := convertfunc(l1, l2)
+		r[k] = v
+	})
+	return r
+}
+
+func tostringarray(table *lua.LTable) []string {
+	return tabletoarray(table, func(item lua.LValue) string { return item.String() })
+}
+func tostringstringmap(table *lua.LTable) map[string]string {
+	return tabletomap(table, func(key, value lua.LValue) (_ string, _ string) {
+		return key.String(), value.String()
+	})
+}
+
+func makearchivemodule(l *lua.LState) *lua.LTable {
+	table := l.NewTable()
+	l.SetField(table, "make_tar_gx", l.NewFunction(func(l *lua.LState) int {
+		inputfiles := tostringstringmap(l.ToTable(1))
+		outputpath := l.ToString(2)
+
+		files, err := archiver.FilesFromDisk(nil, inputfiles)
+		CheckErr(err)
+
+		out, err := os.Create(outputpath)
+		CheckErr(err)
+		defer out.Close()
+
+		format := archiver.CompressedArchive{
+			Compression: archiver.Gz{},
+			Archival:    archiver.Tar{},
+		}
+
+		err = format.Archive(context.Background(), out, files)
+		CheckErr(err)
+		return 1
+	}))
+	l.SetField(table, "make_zip", l.NewFunction(func(l *lua.LState) int {
+		outputpath := l.ToString(1)
+		inputfiles := tostringstringmap(l.ToTable(2))
+
+		files, err := archiver.FilesFromDisk(nil, inputfiles)
+		CheckErr(err)
+
+		out, err := os.Create(outputpath)
+		CheckErr(err)
+		defer out.Close()
+
+		format := archiver.Zip{}
+
+		err = format.Archive(context.Background(), out, files)
+		CheckErr(err)
+		return 1
+	}))
+	return table
+}
+func addutills(l *lua.LState, table *lua.LTable) {
+
+	l.SetField(table, "os", makeosmodule(l))
+	l.SetField(table, "match", makematchmodule(l))
+	l.SetField(table, "archive", makearchivemodule(l))
 }
 
 func addconfigfuncions(L *lua.LState, table *lua.LTable, getonconfig func(func(config *Config)), prebuild *PreBuildContext) {
@@ -178,13 +341,7 @@ func addconfigfuncions(L *lua.LState, table *lua.LTable, getonconfig func(func(c
 	}))
 	L.SetField(table, "addinstallcmd", L.NewFunction(func(l *lua.LState) int {
 		cmd := l.ToString(1)
-		tables := l.ToTable(2)
-
-		var pars = make([]string, 0)
-
-		tables.ForEach(func(l1, l2 lua.LValue) {
-			pars = append(pars, l2.String())
-		})
+		pars := tostringarray(l.ToTable(2))
 
 		getonconfig(func(config *Config) {
 			config.installcmds = append(config.installcmds, CommandInfo{cmd: cmd, parameters: pars})
@@ -194,13 +351,7 @@ func addconfigfuncions(L *lua.LState, table *lua.LTable, getonconfig func(func(c
 	}))
 	L.SetField(table, "adduninstallcmd", L.NewFunction(func(l *lua.LState) int {
 		cmd := l.ToString(1)
-		tables := l.ToTable(2)
-
-		var pars = make([]string, 0)
-
-		tables.ForEach(func(l1, l2 lua.LValue) {
-			pars = append(pars, l2.String())
-		})
+		pars := tostringarray(l.ToTable(2))
 
 		getonconfig(func(config *Config) {
 			config.uninstallcmd = append(config.uninstallcmd, CommandInfo{cmd: cmd, parameters: pars})
@@ -225,13 +376,7 @@ func addconfigfuncions(L *lua.LState, table *lua.LTable, getonconfig func(func(c
 	}))
 	L.SetField(table, "newenum", L.NewFunction(func(l *lua.LState) int {
 		flagname := l.ToString(1)
-		flagvaluestable := l.ToTable(2)
-
-		var flagsvalues []string
-		flagvaluestable.ForEach(func(l1, l2 lua.LValue) {
-			flagsvalues = append(flagsvalues, l2.String())
-		})
-
+		flagsvalues := tostringarray(l.ToTable(2))
 		flagdefaultvalue := l.ToString(3)
 
 		val := l.NewTable()
@@ -415,7 +560,11 @@ func makeposttableconfig(l *lua.LState, table lua.LValue, configdata Config) {
 	filestable := l.NewTable()
 
 	for _, v := range configdata.files {
-		l.SetField(filestable, v.input, lua.LString(v.output))
+
+		inputtable := l.NewTable()
+		l.SetField(inputtable, "string", lua.LString(v.input))
+
+		l.SetTable(filestable, inputtable, lua.LString(v.output))
 	}
 
 	l.SetField(table, "files", filestable)
@@ -721,7 +870,6 @@ func RunScript(input ScriptRunerInput) {
 		l.Push(settings)
 
 		err := l.PCall(3, 0, nil)
-
 		if err != nil {
 			log.Printf("Runing Plugin Failed '" + err.Error() + "'")
 			os.Exit(1)

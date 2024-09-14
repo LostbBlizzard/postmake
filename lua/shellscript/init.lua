@@ -99,16 +99,47 @@ local function GetUploadfilePath(input, uploadfilecontext, onadded)
 	return newfilename
 end
 local function onconfig(outputfile, config, weburl, uploaddir, uploadfilecontext)
-	for input, output in pairs(config.files) do
-		local newout = resolveoutputpath(output)
+	for inputtable, output in pairs(config.files) do
+		local input = inputtable.string
 
-		local newfilename = GetUploadfilePath(input, uploadfilecontext, function(input, newfilename)
+		if postmake.match.isbasicmatch(input) then
+			local newout = resolveoutputpath(output)
+
+			local newfilename = GetUploadfilePath(input, uploadfilecontext, function(input, newfilename)
+				if uploaddir ~= nil then
+					postmake.os.cp(input, uploaddir .. newfilename)
+				end
+			end)
+
+
+			outputfile:write("curl -LJ " .. weburl .. "/" .. newfilename .. " -o " .. newout .. "\n\n")
+		else
+			local basepath = postmake.match.getbasepath(input)
+
+			local dirname = string.sub(basepath, 0, #basepath - 1)
+			local basezippath = dirname .. ".tar.gz"
+
+			local newout = GetUploadfilePath(basezippath, uploadfilecontext, nil)
+
+			local files = {}
+
+			postmake.match.matchpath(input, function(path)
+				local zippath = string.sub(path, #basepath - 1, #path)
+
+				files[path] = zippath
+			end)
+
 			if uploaddir ~= nil then
-				postmake.os.cp(input, uploaddir .. newfilename)
+				postmake.archive.make_tar_gx(files, uploaddir .. newout)
 			end
-		end)
 
-		outputfile:write("curl -LJ " .. weburl .. "/" .. newfilename .. " -o " .. newout .. "\n\n")
+
+			local resolvenewout = resolveoutputpath(output)
+			outputfile:write("curl -LJ " ..
+				weburl .. "/" .. newout .. " -o " .. resolveoutputpath("/" .. newout) .. "\n")
+			outputfile:write("tar -xvzf " ..
+			resolveoutputpath("/" .. newout) .. " -C " .. resolveoutputpath(output) .. "\n\n")
+		end
 	end
 
 	for _, output in pairs(config.paths) do
