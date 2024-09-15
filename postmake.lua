@@ -25,16 +25,24 @@ local mac = postmake.newconfig("macos", "arm64")
 --- flags
 local testflag = all.newflag("Add Path", true)
 --- Add Your files
-local winsmainprogram = postmake.installdir() .. postmake.appname .. ".exe"
+local winsmainprogram = postmake.installdir() .. "bin/" .. postmake.appname .. ".exe"
 win.addfile("./output/postmake.exe", winsmainprogram)
-gnu.addfile("./output/postmake", postmake.installdir() .. postmake.appname)
-mac.addfile("./output/postmake_macos", postmake.installdir() .. postmake.appname)
+gnu.addfile("./output/postmake", postmake.installdir() .. "bin/" .. postmake.appname)
+mac.addfile("./output/postmake_macos", postmake.installdir() .. "bin/" .. postmake.appname)
 
 all.If(testflag).addpath(postmake.installdir())
 
 local installwebsite = "https://github.com/LostbBlizzard/postmake/releases/tag/Release-" .. postmake.appversion
 
-postmake.make(shellscript, { gnu, mac }, { weburl = installwebsite, uploaddir = "./output/upload/" });
+postmake.make(shellscript, { gnu, mac }, {
+	weburl = installwebsite,
+	uploaddir = "./output/upload/",
+	uninstallfile = postmake.installdir() .. "postmake",
+	proxy = {
+		uninstallcmd = "uninstall",
+		program = postmake.installdir() .. "bin/" .. postmake.appname
+	}
+});
 postmake.make(innosetup, { win }, {
 	AppId = "x1miKP6buq3AuaLlXa7jsDZnMpPYz3vYm8dSJZyMcahk3A3AlNAJYFuXlfFJXbXemGeEoMBwvZi",
 	LaunchProgram = winsmainprogram
