@@ -336,9 +336,9 @@ function build.make(postmake, configs, settings)
 	if haspathvarables then
 		outputfile:write("# Add export if it does not exist\n")
 		outputfile:write("AddPath () {\n")
-		outputfile:write("if ! grep -q -F \"export PATH=\\\"PATH:$1\\\"\" ~/.bashrc; then\n")
-		outputfile:write("echo \"export PATH=\\\"PATH:$1\\\"\" >> ~/.bashrc \n")
-		outputfile:write("echo added line \\\"export PATH=\\\"PATH:$1\\\"\\\" to ~/.bashrc \n")
+		outputfile:write("if ! grep -q -F \"export PATH=\\\"\\$PATH:$1\\\"\" ~/.bashrc; then\n")
+		outputfile:write("echo \"export PATH=\\\"\\$PATH:$1\\\"\" >> ~/.bashrc \n")
+		outputfile:write("echo added line \\\"export PATH=\\\"\\$PATH:$1\\\"\\\" to ~/.bashrc \n")
 		outputfile:write("ADDPATHS+=('$1')\n")
 		outputfile:write("fi\n")
 		outputfile:write("}\n\n")
@@ -625,7 +625,7 @@ function build.make(postmake, configs, settings)
 		end
 		outputfile:write("echo 'removepath () {' >> " .. resolvefile .. " \n")
 		outputfile:write("echo >> " .. resolvefile .. " \n")
-		outputfile:write("echo 'linetoremove=\"export PATH=\\\"PATH:$1\\\"\"' >> " ..
+		outputfile:write("echo 'linetoremove=\"export PATH=\\\"\\$PATH:$1\\\"\"' >> " ..
 			resolvefile .. " \n")
 		outputfile:write("echo 'if grep -q -F \"$linetoremove\" ~/.bashrc; then' >> " ..
 			resolvefile .. " \n")
