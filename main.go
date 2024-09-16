@@ -22,6 +22,8 @@ var CLI struct {
 		Input  string `default:"postmake.lua" help:"Output File"`
 		Target string `default:"all" help:"target installer"`
 	} `cmd:"" help:"Builds an Install file using postmake.lua file"`
+	Uninstall struct {
+	} `cmd:""  help:"Uninstalls postmake from the system" `
 }
 
 var letterRunes = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890")
@@ -53,6 +55,13 @@ func main() {
 		utils.CheckErr(err)
 	case "generate-inno-id":
 		fmt.Println(GenerateNewInnoID())
+	case "uninstall":
+		fmt.Println("If your seeing this message the uninstall command failed.")
+		fmt.Println("you can remove this program by removeing the binary directly")
+		fmt.Println("this message is only seen if the program was ran directly and not from the proxy executable found at ")
+		fmt.Println("~/.postmake/postmake while this current executable is found at ~/.postmake/bin/postmake ")
+		fmt.Println("or the program was download without using the installer")
+		os.Exit(1)
 	case "build":
 		data, err := os.ReadFile(CLI.Build.Input)
 		if err != nil {

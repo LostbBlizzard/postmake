@@ -50,7 +50,8 @@ local AllowedSettingsFields =
 	"weburl",
 	"uploaddir",
 	"uninstallfile",
-	"proxy"
+	"proxy",
+	"testmode"
 }
 
 local function has_value_map(tab, val)
@@ -109,7 +110,7 @@ local function GetUploadfilePath(input, uploadfilecontext, onadded)
 	end
 	return newfilename
 end
-local function onconfig(outputfile, config, weburl, uploaddir, uninstallfile, uploadfilecontext)
+local function onconfig(outputfile, config, weburl, uploaddir, uninstallfile, testmode, uploadfilecontext)
 	for inputtable, output in pairs(config.files) do
 		local input = inputtable.string
 
@@ -122,9 +123,18 @@ local function onconfig(outputfile, config, weburl, uploaddir, uninstallfile, up
 				end
 			end)
 
+			if testmode then
+				outputfile:write("echo 'Copying " .. postmake.path.getfilename(newout) .. "'\n")
+				outputfile:write("cp " .. input .. " " .. newout .. "\n")
+			else
+				outputfile:write("echo 'Downloading " .. postmake.path.getfilename(newout) .. "'\n")
+				outputfile:write("curl -sSLJ " ..
+					weburl .. "/" .. newfilename .. " -o " .. newout .. "\n")
+			end
 
-			outputfile:write("echo 'Downloading " .. postmake.path.getfilename(newout) .. "'\n")
-			outputfile:write("curl -sSLJ " .. weburl .. "/" .. newfilename .. " -o " .. newout .. "\n")
+			if inputtable.isexecutable then
+				outputfile:write("chmod +x " .. newout .. "\n")
+			end
 
 			if uninstallfile then
 				outputfile:write("ADDEDFILES+=('" .. newout .. "')\n")
@@ -153,9 +163,14 @@ local function onconfig(outputfile, config, weburl, uploaddir, uninstallfile, up
 
 			local resolvenewout = resolveoutputpath("/" .. newout)
 
-			outputfile:write("echo 'Downloading " .. newout .. "'\n")
-			outputfile:write("curl -sSLJ " ..
-				weburl .. "/" .. newout .. " -o " .. resolvenewout .. "\n")
+			if testmode then
+				outputfile:write("echo 'Copying " .. newout .. "'\n")
+				outputfile:write("cp " .. input .. " " .. resolvenewout .. "\n")
+			else
+				outputfile:write("echo 'Downloading " .. newout .. "'\n")
+				outputfile:write("curl -sSLJ " ..
+					weburl .. "/" .. newout .. " -o " .. resolvenewout .. "\n")
+			end
 
 			outputfile:write("echo 'Unziping " .. newout .. "'\n")
 			outputfile:write("tar -xvzf " ..
@@ -247,6 +262,11 @@ function build.make(postmake, configs, settings)
 	local uploaddir = settings.uploaddir
 	local uninstallfile = settings.uninstallfile
 	local proxy = settings.proxy
+	local testmode = false
+
+	if settings.testmode then
+		testmode = true
+	end
 
 	local outputpath = "./" .. postmake.output() .. ".sh"
 
@@ -299,13 +319,28 @@ function build.make(postmake, configs, settings)
 
 	outputfile:write("Installdir=\"$HOME/" .. resolveoutputpathforinstalldir(postmake.appinstalldir()) .. "\" \n")
 
-	outputfile:write("\n")
+	outputfile:write("\n\n")
 
-	outputfile:write("mkdir -p \"$Installdir\" \n")
+
+	if uninstallfile then
+		outputfile:write("ADDEDFILES=()\n")
+		outputfile:write("ADDEDMATCHS=()\n")
+		outputfile:write("ADDEDDIRS=()\n")
+	end
+
+	if uninstallfile or haspathvarables then
+		outputfile:write("ADDPATHS=()\n\n")
+	end
+
 
 	if haspathvarables then
-		outputfile:write("\nAddPath () {\n")
-		outputfile:write("echo trying $1 to PATH\n")
+		outputfile:write("# Add export if it does not exist\n")
+		outputfile:write("AddPath () {\n")
+		outputfile:write("if ! grep -q -F \"export PATH=\\\"PATH:$1\\\"\" ~/.bashrc; then\n")
+		outputfile:write("echo \"export PATH=\\\"PATH:$1\\\"\" >> ~/.bashrc \n")
+		outputfile:write("echo added line \\\"export PATH=\\\"PATH:$1\\\"\\\" to ~/.bashrc \n")
+		outputfile:write("ADDPATHS+=('$1')\n")
+		outputfile:write("fi\n")
 		outputfile:write("}\n\n")
 	end
 
@@ -364,16 +399,11 @@ function build.make(postmake, configs, settings)
 	end
 
 	if uninstallfile then
-		outputfile:write("ADDEDFILES=()\n")
-		outputfile:write("ADDEDMATCHS=()\n")
-		outputfile:write("ADDEDDIRS=()\n")
-		outputfile:write("ADDPATHS=()\n\n")
-
-
 		local uninstallprogramprogram = resolveoutputpath(uninstallfile)
 		outputfile:write("RunUnInstaller () {\n\n")
 		outputfile:write("if [ -x " .. uninstallprogramprogram .. " ] \nthen\n")
 		outputfile:write("echo uninstalling last version of " .. postmake.appname() .. "\n")
+
 
 		if proxy then
 			outputfile:write(uninstallprogramprogram .. " " .. proxy.uninstallcmd .. "\n")
@@ -381,6 +411,36 @@ function build.make(postmake, configs, settings)
 			outputfile:write(uninstallprogramprogram .. " --uninstall\n")
 		end
 		outputfile:write("fi\n")
+		outputfile:write("}\n\n")
+	end
+	if proxy then
+		outputfile:write("MakeProxyProgram () {\n\n")
+
+		local newuninstallp = resolveoutputpath(uninstallfile)
+		outputfile:write("cp /dev/null " .. newuninstallp .. "\n")
+		outputfile:write("echo '#!/usr/bin/env bash' >> " ..
+			newuninstallp .. "\n")
+		outputfile:write("echo >> " .. newuninstallp .. "\n")
+
+		outputfile:write("echo 'Installdir=\"$HOME/" ..
+			resolveoutputpathforinstalldir(postmake.appinstalldir()) ..
+			"\"' >> " .. newuninstallp .. "\n\n")
+
+		outputfile:write("echo >> " .. newuninstallp .. "\n")
+		outputfile:write("echo >> " .. newuninstallp .. "\n")
+
+		outputfile:write("echo 'if [ \"$1\" != \"" ..
+			proxy.uninstallcmd .. "\" ] ' >> " .. newuninstallp .. "\n")
+
+		outputfile:write("echo then >> " .. newuninstallp .. "\n")
+		outputfile:write("echo >> " .. newuninstallp .. "\n")
+		outputfile:write("echo '" ..
+			resolveoutputpath(proxy.program) .. " \"$@\"" .. "' >> " .. newuninstallp .. "\n")
+		outputfile:write("echo >> exit $?" .. newuninstallp .. "\n")
+		outputfile:write("echo >> " .. newuninstallp .. "\n")
+		outputfile:write("echo 'else' >> " .. newuninstallp .. "\n")
+		outputfile:write("echo >> " .. newuninstallp .. "\n")
+		outputfile:write("\n")
 		outputfile:write("}\n\n")
 	end
 	if uploaddir ~= nil then
@@ -469,36 +529,13 @@ function build.make(postmake, configs, settings)
 
 		if uninstallfile then
 			outputfile:write("RunUnInstaller\n\n")
-
-			if proxy then
-				local newuninstallp = resolveoutputpath(uninstallfile)
-				outputfile:write("cp /dev/null " .. newuninstallp .. "\n")
-				outputfile:write("echo '#!/usr/bin/env bash' >> " ..
-					newuninstallp .. "\n")
-				outputfile:write("echo >> " .. newuninstallp .. "\n")
-
-				outputfile:write("echo 'Installdir=\"$HOME/" ..
-					resolveoutputpathforinstalldir(postmake.appinstalldir()) ..
-					"\"' >> " .. newuninstallp .. "\n\n")
-
-				outputfile:write("echo >> " .. newuninstallp .. "\n")
-				outputfile:write("echo >> " .. newuninstallp .. "\n")
-
-				outputfile:write("echo 'if [ \"$2\" != \"" ..
-					proxy.uninstallcmd .. "\" ] ' >> " .. newuninstallp .. "\n")
-
-				outputfile:write("echo then >> " .. newuninstallp .. "\n")
-				outputfile:write("echo >> " .. newuninstallp .. "\n")
-				outputfile:write("echo '" ..
-					resolveoutputpath(proxy.program) .. " \"$@\"" .. "' >> " .. newuninstallp .. "\n")
-				outputfile:write("echo >> exit $?" .. newuninstallp .. "\n")
-				outputfile:write("echo >> " .. newuninstallp .. "\n")
-				outputfile:write("echo 'else' >> " .. newuninstallp .. "\n")
-				outputfile:write("echo >> " .. newuninstallp .. "\n")
-				outputfile:write("\n")
-			end
 		end
 
+		outputfile:write("mkdir -p \"$Installdir\" \n\n")
+
+		if proxy then
+			outputfile:write("MakeProxyProgram \n\n")
+		end
 
 		local dirtomake = {}
 		for _, output in pairs(config.files) do
@@ -507,10 +544,15 @@ function build.make(postmake, configs, settings)
 			if not has_value(dirtomake, f) then
 				table.insert(dirtomake, f)
 				outputfile:write("mkdir -p " .. f .. "\n")
+				if uninstallfile then
+					outputfile:write("ADDEDDIRS+=(' " .. f .. "')\n")
+				end
 			end
+			outputfile:write("\n")
+			outputfile:write("\n")
 		end
 
-		onconfig(outputfile, config, weburl, uploaddir, uninstallfile, uploadfilecontext)
+		onconfig(outputfile, config, weburl, uploaddir, uninstallfile, testmode, uploadfilecontext)
 
 		for _, subconfig in ipairs(config.ifs) do
 			local isfirstiniflistloop = true
@@ -544,13 +586,17 @@ function build.make(postmake, configs, settings)
 					table.insert(copyofdir, f)
 					outputfile:write("mkdir -p " .. f .. "\n")
 				end
+				outputfile:write("\n")
+				outputfile:write("\n")
 			end
 
-			onconfig(outputfile, subconfig, weburl, uploaddir, uninstallfile, uploadfilecontext)
+			onconfig(outputfile, subconfig, weburl, uploaddir, uninstallfile, testmode, uploadfilecontext)
+
 
 			outputfile:write("\nfi\n\n")
 		end
 
+		outputfile:write("echo Successfully Installed " .. postmake.appname() .. "\n")
 
 		if not islast then
 			outputfile:write("elif")
@@ -566,6 +612,7 @@ function build.make(postmake, configs, settings)
 	if uninstallfile ~= nil then
 		local resolvefile = resolveoutputpath(uninstallfile)
 
+		outputfile:write("# This code makes the uninstall program based on the installed items\n\n")
 		if proxy == nil then
 			outputfile:write("cp /dev/null " .. resolvefile .. "\n")
 			outputfile:write("echo '#!/usr/bin/env bash' >> " .. resolvefile .. "\n")
@@ -576,6 +623,32 @@ function build.make(postmake, configs, settings)
 				"\"' >> " .. resolvefile .. "\n\n")
 			outputfile:write("echo >> " .. resolvefile .. "\n\n")
 		end
+		outputfile:write("echo 'removepath () {' >> " .. resolvefile .. " \n")
+		outputfile:write("echo >> " .. resolvefile .. " \n")
+		outputfile:write("echo 'linetoremove=\"export PATH=\\\"PATH:$1\\\"\"' >> " ..
+			resolvefile .. " \n")
+		outputfile:write("echo 'if grep -q -F \"$linetoremove\" ~/.bashrc; then' >> " ..
+			resolvefile .. " \n")
+		--outputfile:write("echo 'if [ ! \"$(ls -A $1)\" ]; then' >> " .. resolvefile .. " \n")
+		outputfile:write("echo 'grep -v \"$linetoremove\" ~/.bashrc > /tmp/tmp' >> " ..
+			resolvefile .. " \n")
+		outputfile:write("echo 'mv /tmp/tmp ~/.bashrc' >> " ..
+			resolvefile .. " \n")
+		outputfile:write("echo 'echo removed line \"$linetoremove\" from ~/.bashrc' >> " ..
+			resolvefile .. " \n")
+		--outputfile:write("echo 'fi' >> " .. resolvefile .. " \n")
+		outputfile:write("echo 'fi' >> " .. resolvefile .. " \n")
+		outputfile:write("echo '}' >> " .. resolvefile .. " \n")
+		outputfile:write("echo >> " .. resolvefile .. " \n")
+
+		outputfile:write("echo 'tryremovedir () {' >> " .. resolvefile .. " \n")
+		outputfile:write("echo >> " .. resolvefile .. " \n")
+		outputfile:write("echo 'if [ ! \"$(ls -A $1)\" ]; then' >> " .. resolvefile .. " \n")
+		outputfile:write("echo 'rmdir $1' >> " .. resolvefile .. " \n")
+		outputfile:write("echo 'echo removed directory $1' >> " .. resolvefile .. " \n")
+		outputfile:write("echo 'fi' >> " .. resolvefile .. " \n")
+		outputfile:write("echo '}' >> " .. resolvefile .. " \n")
+		outputfile:write("echo >> " .. resolvefile .. " \n")
 
 		outputfile:write("for i in \"${ADDEDFILES[@]}\"\n")
 		outputfile:write("do\n\n")
@@ -583,12 +656,7 @@ function build.make(postmake, configs, settings)
 		outputfile:write("echo rm \"${i}\" >> " .. resolvefile .. " \n")
 		outputfile:write("done\n\n")
 
-		outputfile:write("echo  >> " .. resolvefile .. "\n")
-		outputfile:write("for i in \"${ADDEDPATHS[@]}\"\n")
-		outputfile:write("do\n\n")
-		outputfile:write("echo echo removeing PATH \"${i}\" >> " .. resolvefile .. " \n")
-		outputfile:write("echo removepath \"${i}\" >> " .. resolvefile .. " \n")
-		outputfile:write("done\n\n")
+
 
 		outputfile:write("echo >> " .. resolvefile .. "\n")
 		outputfile:write("echo echo removeing " .. resolvefile .. " >> " .. resolvefile .. " \n")
@@ -597,6 +665,24 @@ function build.make(postmake, configs, settings)
 		outputfile:write("echo \"rm " .. resolvefile .. "\" >> " .. resolvefile .. " \n")
 
 		outputfile:write("echo  >> " .. resolvefile .. "\n")
+
+		outputfile:write("echo  >> " .. resolvefile .. "\n")
+		outputfile:write("for i in \"${ADDEDPATHS[@]}\"\n")
+		outputfile:write("do\n\n")
+		outputfile:write("echo removepath \"${i}\" >> " .. resolvefile .. " \n")
+		outputfile:write("done\n\n")
+
+		outputfile:write("echo  >> " .. resolvefile .. "\n")
+		outputfile:write("for i in \"${ADDEDDIRS[@]}\"\n")
+		outputfile:write("do\n\n")
+		outputfile:write("echo tryremovedir \"${i}\" >> " .. resolvefile .. " \n")
+		outputfile:write("done\n\n")
+
+		outputfile:write("echo tryremovedir '$Installdir' >> " .. resolvefile .. " \n")
+
+		outputfile:write("echo  >> " .. resolvefile .. "\n")
+
+
 		outputfile:write("echo echo Successfully Removed " ..
 			postmake.appname() .. " >> " .. resolvefile .. " \n")
 

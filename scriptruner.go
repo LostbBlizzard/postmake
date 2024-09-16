@@ -22,8 +22,9 @@ type Loadedplugin struct {
 	table lua.LValue
 }
 type InputFile struct {
-	input  string
-	output string
+	input        string
+	output       string
+	isexecutable bool
 }
 
 type Dependsoninfo struct {
@@ -126,8 +127,23 @@ func addconfigfuncions(L *lua.LState, table *lua.LTable, getonconfig func(func(c
 	L.SetField(table, "addfile", L.NewFunction(func(l *lua.LState) int {
 
 		input := InputFile{
-			input:  l.ToString(1),
-			output: l.ToString(2),
+			input:        l.ToString(1),
+			output:       l.ToString(2),
+			isexecutable: false,
+		}
+
+		getonconfig(func(config *Config) {
+			config.files = append(config.files, input)
+		})
+
+		return 0
+	}))
+	L.SetField(table, "addxfile", L.NewFunction(func(l *lua.LState) int {
+
+		input := InputFile{
+			input:        l.ToString(1),
+			output:       l.ToString(2),
+			isexecutable: true,
 		}
 
 		getonconfig(func(config *Config) {
@@ -369,8 +385,10 @@ func makeposttableconfig(l *lua.LState, table lua.LValue, configdata Config) {
 
 		inputtable := l.NewTable()
 		l.SetField(inputtable, "string", lua.LString(v.input))
+		l.SetField(inputtable, "isexecutable", lua.LBool(v.isexecutable))
 
 		l.SetTable(filestable, inputtable, lua.LString(v.output))
+
 	}
 
 	l.SetField(table, "files", filestable)
