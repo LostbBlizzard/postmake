@@ -30,4 +30,3 @@ func MakePathModule(l *lua.LState) *lua.LTable {
 	}))
 	return table
 }
-

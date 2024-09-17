@@ -48,7 +48,7 @@ func main() {
 
 	switch ctx.Command() {
 	case "init":
-		data, err := InternalPlugins.ReadFile("lua/default.lua")
+		data, err := InternalFiles.ReadFile("lua/default.lua")
 		utils.CheckErr(err)
 		newstr := strings.ReplaceAll(string(data), "###{INNOAPPID}###", GenerateNewInnoID())
 		err = os.WriteFile(CLI.Init.Output, []byte(newstr), 0644)

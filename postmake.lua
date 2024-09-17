@@ -45,6 +45,11 @@ postmake.make(shellscript, { gnu, mac }, {
 });
 postmake.make(innosetup, { win }, {
 	AppId = "x1miKP6buq3AuaLlXa7jsDZnMpPYz3vYm8dSJZyMcahk3A3AlNAJYFuXlfFJXbXemGeEoMBwvZi",
-	LaunchProgram = winsmainprogram
+	LaunchProgram = postmake.installdir() .. postmake.appname,
+	proxy = {
+		path = postmake.installdir() .. postmake.appname,
+		uninstallcmd = "uninstall",
+		program = winsmainprogram
+	},
 });
 postmake.make(githubaction, { win, gnu, mac }, { weburl = installwebsite });

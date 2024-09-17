@@ -12,7 +12,7 @@ import (
 )
 
 //go:embed lua/**
-var InternalPlugins embed.FS
+var InternalFiles embed.FS
 
 type ScriptRunerInput struct {
 	ScriptText string
@@ -120,6 +120,7 @@ func addutills(l *lua.LState, table *lua.LTable) {
 	l.SetField(table, "match", luamodule.MakeMatchModule(l))
 	l.SetField(table, "archive", luamodule.MakeArchiveModule(l))
 	l.SetField(table, "path", luamodule.MakePathModule(l))
+	l.SetField(table, "compile", luamodule.MakeCompileModule(l, InternalFiles))
 }
 
 func addconfigfuncions(L *lua.LState, table *lua.LTable, getonconfig func(func(config *Config)), prebuild *PreBuildContext) {
@@ -578,7 +579,7 @@ func RunScript(input ScriptRunerInput) {
 
 			if strings.HasPrefix(pluginpath, "internal/") {
 				pluginname := pluginpath[len("internal/"):]
-				data, err := InternalPlugins.ReadFile("lua/" + pluginname + "/init.lua")
+				data, err := InternalFiles.ReadFile("lua/" + pluginname + "/init.lua")
 				if err != nil {
 					l.RaiseError("unable to read plugin %s init.lua [%s]", pluginpath, err.Error())
 				}
@@ -620,7 +621,7 @@ func RunScript(input ScriptRunerInput) {
 			return 1
 		}
 
-		data, err := InternalPlugins.ReadFile(newpath)
+		data, err := InternalFiles.ReadFile(newpath)
 		if err != nil {
 			l.RaiseError("unable to read plugin file '%s' [%s]", newpath, err.Error())
 		}

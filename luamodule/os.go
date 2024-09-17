@@ -24,12 +24,12 @@ func MakeOsModule(l *lua.LState) *lua.LTable {
 	}))
 	l.SetField(table, "mkdir", l.NewFunction(func(l *lua.LState) int {
 		input := l.ToString(1)
-		os.Mkdir(input, os.ModePerm)
+		utils.CheckErr(os.Mkdir(input, os.ModePerm))
 		return 0
 	}))
 	l.SetField(table, "mkdirall", l.NewFunction(func(l *lua.LState) int {
 		input := l.ToString(1)
-		os.MkdirAll(input, os.ModePerm)
+		utils.CheckErr(os.MkdirAll(input, os.ModePerm))
 		return 0
 	}))
 	l.SetField(table, "exist", l.NewFunction(func(l *lua.LState) int {

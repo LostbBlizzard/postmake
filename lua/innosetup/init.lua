@@ -32,6 +32,9 @@ local ContextBasedDefaultsSettinsList =
 	"MyAppURL",
 	"MyAppExeName"
 }
+local Othersettings = {
+	"proxy"
+}
 
 function build.make(postmake, configs, settings)
 	--- Boring checks
@@ -97,6 +100,15 @@ function build.make(postmake, configs, settings)
 			goto continue
 		end
 
+		for _, SettingName in ipairs(Othersettings) do
+			if key == SettingName then
+				issettingallowed = true
+				break
+			end
+		end
+		if issettingallowed then
+			goto continue
+		end
 
 		print("The Key '" .. key .. "' is not an  valid inno Settins. Typo?")
 		goterrorinsettings = true
@@ -108,11 +120,30 @@ function build.make(postmake, configs, settings)
 			"\nCheck the Inno Setup Docs https://jrsoftware.org/ishelp/index.php?topic=iconssection\nif The setting exist help add it on https://github.com/LostbBlizzard/postmake\n\n")
 		os.exit(1)
 	end
+
+
+	if settings.proxy then
+		if settings.proxy.uninstallcmd == nil then
+			print("proxy setting is missing the uninstallcmd field")
+		end
+		if settings.proxy.program == nil then
+			print("proxy setting is missing the program field")
+		end
+		if settings.proxy.path == nil then
+			print("proxy setting is missing the path field")
+		end
+
+		if settings.proxy.uninstallcmd == nil or settings.proxy.program == nil then
+			os.exit(1)
+		end
+	end
 	--- end of boring checks
 
 	--- InnoSettings with context based Defaults
 	Inno_DefaultGroupName = util.UseOrDefault(settings.DefaultGroupName, postmake.appname())
 	Inno_OutputBaseFilename = util.UseOrDefault(settings.OutputBaseFilename, postmake.appname() .. "Setup")
+	---Other Settings
+
 	---
 	print("---building inno script")
 
@@ -215,6 +246,41 @@ function build.make(postmake, configs, settings)
 	outputfile:write("Name: \"english\"; MessagesFile: \"compiler:Default.isl\"\n")
 
 	outputfile:write("\n[Files]\n")
+
+	if settings.proxy then
+		local proxdirpath = postmake.output() .. "/innosetup"
+		local proxyfilepath = proxdirpath .. "/" .. postmake.appname() .. ".exe"
+		local proxyscriptfilepath = proxdirpath .. "/main.lua"
+
+		postmake.os.mkdirall(proxdirpath)
+
+		local proxyfile = io.open(proxyscriptfilepath, "w")
+		if proxyfile == nil then
+			print("unable to open file '" .. proxyfile .. "'")
+			os.exit(1)
+		end
+
+		proxyfile:write("print(\"hello world\")")
+
+		postmake.compile.luaprogram(proxyfilepath, "windows")
+
+		local destdir = util.postmakepathtoinnoapppath(
+			postmake.path.getparent(settings
+				.proxy.path))
+
+		outputfile:write("Source: \"" ..
+			proxyfilepath ..
+			"\"; DestDir: \"" .. destdir
+			.. "\";\n")
+
+		outputfile:write("Source: \"" ..
+			proxyfilepath ..
+			"\"; DestDir: \"" .. destdir
+			.. "\";\n")
+
+		proxyfile:close()
+	end
+
 	for inputval, output in pairs(config.files) do
 		local input = inputval.string
 
@@ -237,7 +303,9 @@ function build.make(postmake, configs, settings)
 	if hasrunsection then
 		outputfile:write("\n[Run]\n")
 		if settings.LaunchProgram ~= nil then
-			outputfile:write("Filename: \"" .. util.postmakepathtoinnoapppath(settings.LaunchProgram) ..
+			local torun = util.postmakepathtoinnoapppath(settings.LaunchProgram)
+
+			outputfile:write("Filename: \"" .. torun ..
 				"\"; Description: \"{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}\"; Flags: nowait postinstall skipifsilent\n")
 		end
 
