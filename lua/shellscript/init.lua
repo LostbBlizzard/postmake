@@ -1,14 +1,20 @@
 local build = {}
 
-
+---@param path string
+---@return string
 local function resolveoutputpath(path)
 	return "$Installdir" .. path
 end
 
+---@param path string
+---@return string
 local function resolveoutputpathforinstalldir(path)
-	return path:gsub("~/", "")
+	local r = path:gsub("~/", "")
+	return r
 end
 
+---@param oosname ostype
+---@return string
 local function ostounname(oosname)
 	if oosname == "linux" then
 		return "Linux"
@@ -20,6 +26,8 @@ local function ostounname(oosname)
 	end
 end
 
+---@param archtype archtype
+---@return string
 local function archtounname(archtype)
 	if archtype == "x64" then
 		return "x86_64"
@@ -33,10 +41,14 @@ local function archtounname(archtype)
 	end
 end
 
+---@param varablename archtype
+---@return string
 local function stringtoshellsrciptvarable(varablename)
 	return "var" .. varablename:gsub(" ", "_")
 end
 
+---@param bool archtype
+---@return string
 local function booltoyesorno(bool)
 	if bool then
 		return "yes"
@@ -54,6 +66,9 @@ local AllowedSettingsFields =
 	"testmode"
 }
 
+---@param tab table
+---@param val any
+---@return boolean
 local function has_value_map(tab, val)
 	for _, value in pairs(tab) do
 		if value == val then
@@ -63,6 +78,10 @@ local function has_value_map(tab, val)
 
 	return false
 end
+
+---@param tab table
+---@param val any
+---@return boolean
 local function has_value(tab, val)
 	for _, value in ipairs(tab) do
 		if value == val then
@@ -72,6 +91,10 @@ local function has_value(tab, val)
 
 	return false
 end
+
+---@param tab table
+---@param val any
+---@return boolean
 local function has_key_map(tab, val)
 	for key, _ in pairs(tab) do
 		if key == val then
@@ -81,6 +104,9 @@ local function has_key_map(tab, val)
 
 	return false
 end
+
+---@param t any
+---@return any
 local function shallow_copy(t)
 	local t2 = {}
 	for k, v in pairs(t) do
@@ -90,6 +116,10 @@ local function shallow_copy(t)
 end
 
 
+---@param input string
+---@param uploadfilecontext { [string]: string }
+---@param onadded fun(input : string,newfilename:string)?
+---@return string
 local function GetUploadfilePath(input, uploadfilecontext, onadded)
 	local newfilename = ""
 
@@ -117,9 +147,9 @@ local function onconfig(outputfile, config, weburl, uploaddir, uninstallfile, te
 		if postmake.match.isbasicmatch(input) then
 			local newout = resolveoutputpath(output)
 
-			local newfilename = GetUploadfilePath(input, uploadfilecontext, function(input, newfilename)
+			local newfilename = GetUploadfilePath(input, uploadfilecontext, function(input2, newfilename)
 				if uploaddir ~= nil then
-					postmake.os.cp(input, uploaddir .. newfilename)
+					postmake.os.cp(input2, uploaddir .. newfilename)
 				end
 			end)
 
@@ -449,7 +479,6 @@ function build.make(postmake, configs, settings)
 
 	outputfile:write("\n")
 
-	local installerfile
 	local uploadfilecontext = {}
 
 	for configindex, config in ipairs(configs) do

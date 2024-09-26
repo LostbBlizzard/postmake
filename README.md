@@ -54,14 +54,17 @@ curl -L https://github.com/LostbBlizzard/postmake/releases/latest/install.sh | s
 or go to [releases](https://github.com/LostbBlizzard/postmake/releases/latest) and download the install.sh and run it in your shell.
 
 ## GitHub Actions
-TODO
+[Repository](https://github.com/LostbBlizzard/postmake-action/tree/master) 
+[GitHub Marketplace]() 
 
 # Docs
+[Documentation](https://lostbblizzard.github.io/postmake/cli/index.html)
+[Command Line Tool](https://lostbblizzard.github.io/postmake/)
+[Lua API](https://lostbblizzard.github.io/postmake/lua/postmake.html)
 
 # Other Notes
-
-All Installation methods were all made using the program.
-Your may use the postmake.lua at the project root for inspiration.
-This Project is inspired by [premake](https://premake.github.io/docs/What-Is-Premake). 
+- All Installation methods were all made using the program.
+- Your may use the postmake.lua at the project root for inspiration.
+- This Project is inspired by [premake](https://premake.github.io/docs/What-Is-Premake). 
 
 

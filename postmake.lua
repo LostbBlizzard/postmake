@@ -34,22 +34,31 @@ all.If(addpathflag).addpath(postmake.installdir())
 
 local installwebsite = "https://github.com/LostbBlizzard/postmake/releases/tag/Release-" .. postmake.appversion
 
-postmake.make(shellscript, { gnu, mac }, {
-	weburl = installwebsite,
-	uploaddir = "./output/upload/",
-	uninstallfile = postmake.installdir() .. "postmake",
-	proxy = {
-		uninstallcmd = "uninstall",
-		program = postmake.installdir() .. "bin/" .. postmake.appname
-	},
-});
-postmake.make(innosetup, { win }, {
-	AppId = "x1miKP6buq3AuaLlXa7jsDZnMpPYz3vYm8dSJZyMcahk3A3AlNAJYFuXlfFJXbXemGeEoMBwvZi",
-	LaunchProgram = postmake.installdir() .. postmake.appname,
-	proxy = {
-		path = postmake.installdir() .. postmake.appname,
-		uninstallcmd = "uninstall",
-		program = winsmainprogram
-	},
-});
-postmake.make(githubaction, { win, gnu, mac }, { weburl = installwebsite });
+postmake.make(shellscript, { gnu, mac },
+	---@type ShellScriptConfig
+	{
+		weburl = installwebsite,
+		uploaddir = "./output/upload/",
+		uninstallfile = postmake.installdir() .. "postmake",
+		proxy = {
+			uninstallcmd = "uninstall",
+			program = postmake.installdir() .. "bin/" .. postmake.appname
+		},
+	});
+postmake.make(innosetup, { win },
+	---@type InnoSetConfig
+	{
+		AppId = "x1miKP6buq3AuaLlXa7jsDZnMpPYz3vYm8dSJZyMcahk3A3AlNAJYFuXlfFJXbXemGeEoMBwvZi",
+		LaunchProgram = postmake.installdir() .. postmake.appname,
+		proxy = {
+			path = postmake.installdir() .. postmake.appname,
+			uninstallcmd = "uninstall",
+			program = winsmainprogram
+		},
+	});
+
+postmake.make(githubaction, { win, gnu, mac },
+	---@type GitHubActionConfig
+	{
+		weburl = installwebsite
+	});

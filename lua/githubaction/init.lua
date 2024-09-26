@@ -1,5 +1,8 @@
 local build = {}
 
+
+---@type ShellScriptPlugin
+---@diagnostic disable-next-line: assign-type-mismatch
 local shellscript = postmake.loadplugin("internal/shellscript")
 
 local AllowedSettingsFields = {
@@ -48,9 +51,9 @@ local function onconfig(myindent, outputfile, config, weburl, uploaddir, uploadf
 		local newout = resolveoutputpath(output)
 
 		local newfilename = shellscript.GetUploadfilePath(input, uploadfilecontext,
-			function(input, newfilename)
+			function(input2, newfilename)
 				if uploaddir ~= nil then
-					postmake.os.cp(input, uploaddir .. newfilename)
+					postmake.os.cp(input2, uploaddir .. newfilename)
 				end
 			end)
 

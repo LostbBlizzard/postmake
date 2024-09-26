@@ -140,8 +140,8 @@ function build.make(postmake, configs, settings)
 	--- end of boring checks
 
 	--- InnoSettings with context based Defaults
-	Inno_DefaultGroupName = util.UseOrDefault(settings.DefaultGroupName, postmake.appname())
-	Inno_OutputBaseFilename = util.UseOrDefault(settings.OutputBaseFilename, postmake.appname() .. "Setup")
+	local Inno_DefaultGroupName = util.UseOrDefault(settings.DefaultGroupName, postmake.appname())
+	local Inno_OutputBaseFilename = util.UseOrDefault(settings.OutputBaseFilename, postmake.appname() .. "Setup")
 	---Other Settings
 
 	---
