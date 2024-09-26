@@ -10,3 +10,8 @@ BuildInstallers:
 	env GOOS=darwin go build -o ./output/postmake_macos -v .
 	./output/postmake build
 
+BuildDoc:
+	cd ./doc; mdbook build --dest-dir ./output
+
+WatchDoc:
+	cd ./doc; mdbook watch --dest-dir ./output

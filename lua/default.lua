@@ -5,7 +5,7 @@ local shellscript = postmake.loadplugin("internal/shellscript")
 -- See https://jrsoftware.org/ishelp/index.php?topic=setup_appid
 
 -- This variable has generated for you can get a new one using inno setup or using 'postmake generate-inno-id'
-InnoAppID = "###{INNOAPPID}###"
+local InnoAppID = "###{INNOAPPID}###"
 
 --postmake.target() is the target installer you can change this by doing 'postmake --target winodows"
 -- App Settings

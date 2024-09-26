@@ -23,14 +23,14 @@ local gnu = postmake.newconfig("linux", "x64")
 local mac = postmake.newconfig("macos", "arm64")
 
 --- flags
-local testflag = all.newflag("Add Path", true)
+local addpathflag = all.newflag("Add Path", true)
 --- Add Your files
 local winsmainprogram = postmake.installdir() .. "bin/" .. postmake.appname .. ".exe"
 win.addxfile("./output/postmake.exe", winsmainprogram)
 gnu.addxfile("./output/postmake", postmake.installdir() .. "bin/" .. postmake.appname)
 mac.addxfile("./output/postmake_macos", postmake.installdir() .. "bin/" .. postmake.appname)
 
-all.If(testflag).addpath(postmake.installdir())
+all.If(addpathflag).addpath(postmake.installdir())
 
 local installwebsite = "https://github.com/LostbBlizzard/postmake/releases/tag/Release-" .. postmake.appversion
 

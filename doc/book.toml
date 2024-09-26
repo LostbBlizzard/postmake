@@ -1,0 +1,11 @@
+[book]
+authors = ["LostbBlizzard"]
+title = "postmakedoc"
+description = "The book about postmake"
+
+[output.html]
+language = "en"
+multilingual = false
+src = "src"
+git-repository-url = "https://github.com/LostbBlizzard/postmake"
+edit-url-template = "https://github.com/LostbBlizzard/postmake/doc/src/{path}"
