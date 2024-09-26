@@ -4,9 +4,12 @@ on:
   push:
     branches: [ "master" ]
     paths:
-      - doc/**.md
+      - doc/src/**.md
   pull_request:
     branches: [ "master" ]
+  workflow_dispatch:
+    branches:
+      - master
 
 jobs:
 
