@@ -42,7 +42,7 @@ postmake.make(innosetup, { win }, { AppId = InnoAppID, LaunchProgram = winsmainp
 then run postmake build.
 
 # Install
-Also all Installation method were all made using the program
+
 ## Windows
 Go to [releases](https://github.com/LostbBlizzard/postmake/releases/latest) and download the and run the postmakeSetup.exe.
 
@@ -59,6 +59,8 @@ TODO
 # Docs
 
 # Other Notes
+
+All Installation methods were all made using the program.
 Your may use the postmake.lua at the project root for inspiration.
 This Project is inspired by [premake](https://premake.github.io/docs/What-Is-Premake). 
 
