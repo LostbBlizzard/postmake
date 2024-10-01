@@ -10,7 +10,10 @@ BuildInstallers:
 	env GOOS=darwin go build -o ./output/postmake_macos -v .
 	./output/postmake build
 
+BuildAPIDocs:
+	luadocparser run --files ./lua/api
 BuildDoc:
+	luadocparser run --files ./lua/api
 	cd ./doc; mdbook build --dest-dir ./output
 
 WatchDoc:
