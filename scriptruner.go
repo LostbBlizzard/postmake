@@ -6,9 +6,10 @@ import (
 	"os"
 	"strings"
 
-	lua "github.com/yuin/gopher-lua"
 	"postmake/luamodule"
 	"postmake/utils"
+
+	lua "github.com/yuin/gopher-lua"
 )
 
 //go:embed lua/**
@@ -506,16 +507,25 @@ func RunScript(input ScriptRunerInput) {
 		os := l.ToString(1)
 
 		newtable := l.NewTable()
-		addconfigfuncions(L, configalltable,
+		addconfigfuncions(L, newtable,
 			func(f func(config *Config)) {
 				for i, item := range prebuild.configs {
-					if item.os == os && len(item.dependsonflags) == 0 {
+
+					okcheck := false
+					if os == "unix" {
+						okcheck = item.os == "linux" || item.os == "macos"
+					} else {
+						okcheck = item.os == os
+					}
+
+					if okcheck && len(item.dependsonflags) == 0 {
 						f(&prebuild.configs[i])
 					}
 				}
 			}, &prebuild)
 
 		l.Push(newtable)
+
 		return 1
 	}))
 	L.SetField(postmaketable, "forarch", L.NewFunction(func(l *lua.LState) int {

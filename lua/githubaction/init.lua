@@ -67,6 +67,9 @@ local function onconfig(myindent, outputfile, config, weburl, uploaddir, uploadf
 end
 
 
+---@param postmake pluginpostmake
+---@param configs pluginconfig[]
+---@param settings GitHubActionConfig
 function build.make(postmake, configs, settings)
 	-- boring checks
 	if settings.weburl == nil then

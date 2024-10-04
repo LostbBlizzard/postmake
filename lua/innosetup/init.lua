@@ -36,6 +36,9 @@ local Othersettings = {
 	"proxy"
 }
 
+---@param postmake pluginpostmake
+---@param configs pluginconfig[]
+---@param settings InnoSetConfig
 function build.make(postmake, configs, settings)
 	--- Boring checks
 	if #configs ~= 1 then
@@ -164,11 +167,11 @@ function build.make(postmake, configs, settings)
 		"; postmake.make(innosetup, { windows_64 }, { OutputBaseFilename = \"coolbasefile\", DefaultGroupName = \"test\" });\n\n")
 
 
-	outputfile:write("#define MyAppName \"" .. util.UseOrDefault(postmake.MyAppVersion, postmake.appname()) .. "\"\n")
+	outputfile:write("#define MyAppName \"" .. util.UseOrDefault(settings.MyAppVersion, postmake.appname()) .. "\"\n")
 	outputfile:write("#define MyAppVersion \"" ..
-		util.UseOrDefault(postmake.MyAppVersion, postmake.appversion()) .. "\"\n")
+		util.UseOrDefault(settings.MyAppVersion, postmake.appversion()) .. "\"\n")
 	outputfile:write("#define MyAppPublisher \"" ..
-		util.UseOrDefault(postmake.MyAppPublisher, postmake.apppublisher()) .. "\"\n")
+		util.UseOrDefault(settings.MyAppPublisher, postmake.apppublisher()) .. "\"\n")
 	outputfile:write("#define MyAppURL \"" .. util.UseOrDefault(settings.MyAppURL, postmake.appwebsite()) .. "\"\n")
 	outputfile:write("#define MyAppExeName \"" ..
 		util.UseOrDefault(settings.MyAppExeName, postmake.appname() .. ".exe") .. "\"\n\n")
@@ -284,9 +287,16 @@ function build.make(postmake, configs, settings)
 	for inputval, output in pairs(config.files) do
 		local input = inputval.string
 
-		local reltoinnofile = input
+		local reltoinnofile = util.innoinputapppath(input)
 		local newout = util.getdir(util.postmakepathtoinnoapppath(output))
-		outputfile:write("Source: \"" .. reltoinnofile .. "\"; DestDir: \"" .. newout .. "\";\n")
+		outputfile:write("Source: \"" .. reltoinnofile .. "\"; DestDir: \"" .. newout .. "\";")
+		outputfile:write(" Flags: ignoreversion ")
+
+		local isrecurse = string.find(input, "%*%*")
+		if isrecurse then
+			outputfile:write("recursesubdirs")
+		end
+		outputfile:write("\n")
 	end
 
 	outputfile:write("\n[Tasks]\n")
@@ -311,10 +321,16 @@ function build.make(postmake, configs, settings)
 
 		for _, cmd in ipairs(config.installcmds) do
 			outputfile:write("Filename: \"" ..
-				util.postmakepathtoinnoapppathcmd(cmd.cmd()) .. "\"; Parameters: ")
-			for _, item in ipairs(cmd.pars()) do
-				outputfile:write("\"" .. util.postmakepathtoinnoapppathcmd(item) .. "\"")
+				util.postmakepathtoinnoapppathcmd(cmd.cmd()) .. "\"; Parameters: \"")
+
+			for i, item in ipairs(cmd.pars()) do
+				if i ~= 1 then
+					outputfile:write(" ")
+				end
+
+				outputfile:write(util.postmakepathtoinnoapppathcmd(item))
 			end
+			outputfile:write("\"")
 			outputfile:write("\n")
 		end
 	end

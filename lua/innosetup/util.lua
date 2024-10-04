@@ -6,7 +6,14 @@ function m.postmakepathtoinnopath(path)
 end
 
 function m.postmakepathtoinnoapppath(path)
-	return "{app}" .. path
+	local newstr = path.gsub(path, "/", "\\")
+	return "{app}" .. newstr
+end
+
+function m.innoinputapppath(path)
+	local newstr = path.gsub(path, "/", "\\")
+	newstr = path.gsub(newstr, "%*%*", "*")
+	return newstr
 end
 
 local function StringStartWith(String, Start)

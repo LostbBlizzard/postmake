@@ -229,6 +229,9 @@ function build.GetUploadfilePath(input, uploadfilecontext, onadded)
 	return GetUploadfilePath(input, uploadfilecontext, onadded)
 end
 
+---@param postmake pluginpostmake
+---@param configs pluginconfig
+---@param settings ShellScriptConfig
 function build.make(postmake, configs, settings)
 	print("---building shell script")
 
@@ -446,6 +449,7 @@ function build.make(postmake, configs, settings)
 	if proxy then
 		outputfile:write("MakeProxyProgram () {\n\n")
 
+		---@cast uninstallfile string
 		local newuninstallp = resolveoutputpath(uninstallfile)
 		outputfile:write("cp /dev/null " .. newuninstallp .. "\n")
 		outputfile:write("echo '#!/usr/bin/env bash' >> " ..
