@@ -47,4 +47,5 @@ local InnoSetupConfigProxy = {};
 ---@field MyAppPublisher? string	
 ---@field MyAppVersion? string	
 ---@field AppId string	
+---@field UninstallDelete? string[] Additional files or directories you want the uninstaller to delete See https://jrsoftware.org/ishelp/topic_uninstalldeletesection.htm
 local InnoSetConfig = {}

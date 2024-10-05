@@ -33,7 +33,8 @@ local ContextBasedDefaultsSettinsList =
 	"MyAppExeName"
 }
 local Othersettings = {
-	"proxy"
+	"proxy",
+	"UninstallDelete"
 }
 
 ---@param postmake pluginpostmake
@@ -332,6 +333,17 @@ function build.make(postmake, configs, settings)
 			end
 			outputfile:write("\"")
 			outputfile:write("\n")
+		end
+	end
+
+	if settings.UninstallDelete ~= nil then
+		if #settings.UninstallDelete ~= 0 then
+			outputfile:write("\n[UninstallDelete]\n")
+
+			for _, value in ipairs(settings.UninstallDelete) do
+				outputfile:write("Type: files; Name: \"" ..
+					util.postmakepathtoinnoapppathcmd(value) .. "\" \n")
+			end
 		end
 	end
 
