@@ -49,3 +49,16 @@ local InnoSetupConfigProxy = {};
 ---@field AppId string	
 ---@field UninstallDelete? string[] Additional files or directories you want the uninstaller to delete See https://jrsoftware.org/ishelp/topic_uninstalldeletesection.htm
 local InnoSetConfig = {}
+
+
+---@class EnbedPlugin
+local EnbedPlugin = {};
+
+---@param basefile string
+---@param outputfile string
+---@param lang string
+function EnbedPlugin.enbed(basefile, outputfile, lang) end
+
+---@param langname string
+---@param callback fun(basefile:string, outputfile:string)
+function EnbedPlugin.addlang(langname, callback) end
