@@ -59,6 +59,10 @@ local EnbedPlugin = {};
 ---@param lang string
 function EnbedPlugin.enbed(basefile, outputfile, lang) end
 
----@param langname string
 ---@param callback fun(basefile:string, outputfile:string)
-function EnbedPlugin.addlang(langname, callback) end
+---@param lang string
+function EnbedPlugin.addlang(lang, callback) end
+
+---@param filepath string
+---@param lang string
+function EnbedPlugin.maketypedef(filepath, lang) end

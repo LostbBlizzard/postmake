@@ -1,10 +1,5 @@
-
 #include <stddef.h>
-
-struct Buffer {
-	const char* data;
-	size_t size;
-};
+#include "internalfiles_type.h"
 
 //enbed ./textfile.txt
-extern struct Buffer internal_file;
+extern struct InternalFileBuffer internal_file;

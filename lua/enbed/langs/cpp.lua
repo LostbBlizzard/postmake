@@ -1,6 +1,14 @@
+local m = {}
+
 ---@param basefile string
 ---@param outputfile string,
----@param filestoenbed string[]
-return function(basefile, outputfile, filestoenbed)
-
+function m.enbed(basefile, outputfile)
+	print("enbed for cpp is not supported yet")
 end
+
+---@param outputfile string,
+function m.maketypedef(outputfile)
+	print("maketypedef for cpp is not supported yet")
+end
+
+return m
