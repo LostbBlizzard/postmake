@@ -2,22 +2,37 @@ package main
 
 import (
 	"os"
+	"os/exec"
 	"testing"
 )
 
 // Just testing for no runtime errors
 func TestScript(t *testing.T) {
-	var tests = []struct {
-		inputfile string
-	}{}
-	for _, tt := range tests {
-		t.Run(tt.inputfile, func(t *testing.T) {
 
-			data, err := os.ReadFile(tt.inputfile)
-			if err != nil {
-				panic(err)
-			}
-			RunScript(ScriptRunerInput{ScriptText: string(data), Target: "any"})
-		})
+	rootdir, _ := os.Getwd()
+
+	testdir := rootdir + "/tests/"
+	items, _ := os.ReadDir(testdir)
+
+	exec.Command("go build")
+
+	for _, item := range items {
+		if item.IsDir() {
+			t.Run(item.Name(), func(t *testing.T) {
+
+				os.Chdir(rootdir)
+
+				workingdir := testdir + item.Name()
+
+				os.Chdir(workingdir)
+
+				cmd := exec.Command(rootdir+"/postmake", "build")
+				err := cmd.Run()
+				if err != nil {
+					t.Fatalf(err.Error())
+				}
+
+			})
+		}
 	}
 }

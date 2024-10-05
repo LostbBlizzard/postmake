@@ -16,8 +16,9 @@ import (
 var InternalFiles embed.FS
 
 type ScriptRunerInput struct {
-	ScriptText string
-	Target     string
+	ScriptText    string
+	Target        string
+	IsTestingMode bool
 }
 type Loadedplugin struct {
 	table lua.LValue

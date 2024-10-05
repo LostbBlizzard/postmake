@@ -16,14 +16,14 @@ return function(basefile, outputfile)
 	local inputfile = io.open(basefile, "rb")
 	if inputfile == nil then
 		print("unable to open/read " .. basefile)
-		exit(1)
+		os.exit(1)
 		return
 	end
 
 	local output = io.open(outputfile, "wb")
 	if output == nil then
 		print("unable to open/write " .. outputfile)
-		exit(1)
+		os.exit(1)
 		return
 	end
 
@@ -47,7 +47,7 @@ return function(basefile, outputfile)
 				if datafile == nil then
 					output:close()
 					print("unable to read file at " .. pathtoread)
-					exit(1)
+					os.exit(1)
 				end
 
 				output:write("#include \"" .. basefile .. "\"\n")
