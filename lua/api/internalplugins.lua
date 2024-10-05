@@ -66,3 +66,6 @@ function EnbedPlugin.addlang(lang, callback) end
 ---@param filepath string
 ---@param lang string
 function EnbedPlugin.maketypedef(filepath, lang) end
+
+---@class DpkgConfig
+local DpkgConfig = {}
