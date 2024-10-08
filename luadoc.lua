@@ -14,8 +14,16 @@ end
 local function replace_string(string, match, newstring)
 	return string:gsub(match, newstring)
 end
----@type classinfo[]
+
+---@class ClassData
+---@field info Classinfo
+---@field funcs Funcinfo[]
+
+---@type ClassData[]
 local classes = {}
+
+---@type Aliasinfo[]
+local aliases = {}
 
 function Resolvetype(type)
 	if type == "string" then
@@ -25,8 +33,8 @@ function Resolvetype(type)
 		return "[integer](https://www.lua.org/pil/2.3.html)"
 	end
 
-	if type == "booleans" then
-		return "[integer](https://www.lua.org/pil/2.2.html)"
+	if type == "boolean" then
+		return "[boolean](https://www.lua.org/pil/2.2.html)"
 	end
 
 	if type == "number" then
@@ -35,19 +43,22 @@ function Resolvetype(type)
 
 	local link = "./../lua/"
 	for _, value in ipairs(classes) do
-		if value.name == type then
+		if value.info.name == type then
+			return "[" .. type .. "](" .. link .. value.info.name .. ".md" .. ")"
+		end
+	end
+	for _, value in ipairs(aliases) do
+		if value.type == type then
 			return "[" .. type .. "](" .. link .. value.name .. ".md" .. ")"
 		end
 	end
 	return type
 end
 
-luadoc.onclass(function(classinfo)
-	table.insert(classes, classinfo)
-
+---@param classdata ClassData
+local function onclassdata(classdata)
+	local classinfo = classdata.info
 	local filename = apidoc .. classinfo.name .. ".md"
-
-	--print("writeing to file " .. filename)
 
 	local file = io.open(filename, "w")
 	if file == nil then
@@ -63,28 +74,103 @@ luadoc.onclass(function(classinfo)
 		file:write(" --- | --- | --- |\n")
 	end
 	for _, value in ipairs(classinfo.fields) do
-		file:write(value.name .. " | " .. Resolvetype(value.type) .. " | " .. value.description .. "\n")
+		file:write(value.name)
+
+		if value.optional then
+			file:write("[?]()")
+		end
+		file:write(" | " .. Resolvetype(value.type) .. " | " .. value.description .. "\n")
+	end
+
+	if #classdata.funcs ~= 0 then
+		file:write("## Table Functions\n")
+		file:write("|  Signature | Description\n")
+		file:write(" --- | --- |\n")
+	end
+
+	for _, value in ipairs(classdata.funcs) do
+		file:write(value.name)
+
+		file:write("(")
+		for index, par in ipairs(value.pars) do
+			file:write(par.name)
+			file:write(":")
+			file:write(Resolvetype(par.type))
+
+			local islast = index == #value.pars
+
+			if not islast then
+				file:write(",")
+			end
+		end
+		file:write(")")
+
+		if value.ret ~= "" then
+			file:write(":")
+			file:write(Resolvetype(value.ret))
+		end
+
+		file:write(" | " .. value.description .. "\n")
 	end
 
 
 	file:write(classinfo.description)
 	file:close()
+end
+function makealias(aliasinfo)
+	local filename = apidoc .. aliasinfo.name .. ".md"
+
+	local file = io.open(filename, "w")
+	if file == nil then
+		return
+	end
+	file:write("# " .. aliasinfo.name .. "(alias)\n")
+	file:write(aliasinfo.description .. "\n")
+
+	file:write("```lua\n\n\n")
+	file:write("")
+	file:write("```")
+
+	file:close()
+end
+
+Luadoc.onalias(function(aliasinfo)
+	table.insert(aliases, aliasinfo)
 end)
 
-luadoc.onfunc(function(funcinfo)
+Luadoc.onclass(function(classinfo)
+	local newclassinfo = {}
+	newclassinfo.info = classinfo
+	newclassinfo.funcs = {}
+	table.insert(classes, newclassinfo)
+end)
+
+Luadoc.onfunc(function(funcinfo)
 	if funcinfo.memberobject ~= nil then
-		print(funcinfo.memberobject.ObjectName)
+		for _, value in ipairs(classes) do
+			if value.info.name == funcinfo.memberobject.classname then
+				table.insert(value.funcs, funcinfo)
+			end
+		end
 	end
 end)
 
-luadoc.ondone(function()
+Luadoc.ondone(function()
 	local apisummary = ""
 
 	local link = "./lua/"
-	for _, value in ipairs(classes) do
-		apisummary = apisummary .. "    - [" .. value.name .. "](" .. link .. value.name .. ".md" .. ")\n"
+	for _, item in ipairs(classes) do
+		apisummary = apisummary ..
+		    "    - [" .. item.info.name .. "](" .. link .. item.info.name .. ".md" .. ")\n"
+		onclassdata(item)
 	end
 
+
+	for _, item in ipairs(aliases) do
+		apisummary = apisummary ..
+		    "    - [" .. item.name .. "](" .. link .. item.name .. ".md" .. ")\n"
+		makealias(item)
+	end
 
 	local Template_SUMMARYText = read_file(Template_SUMMARY)
 	local newtext = replace_string(Template_SUMMARYText, "###LUAAPI###", apisummary)
@@ -96,7 +182,4 @@ luadoc.ondone(function()
 
 	file:write(newtext)
 	file:close()
-end)
-
-luadoc.onfile(function(filepath)
 end)

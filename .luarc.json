@@ -1,0 +1,5 @@
+{
+  "workspace.library": ["~/.luadocparser/lua/definitions"],
+  "runtime.version": "Lua 5.3",
+  "hint.enable": false
+}
