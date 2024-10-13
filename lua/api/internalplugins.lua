@@ -28,7 +28,10 @@ function ShellScriptPlugin.GetUploadfilePath(input, uploadfilecontext, onadded) 
 ---@field uninstallfile? string
 ---@field singlefile? string
 ---@field testmode? boolean
-local ShellScriptConfig = {}
+---@field style? shellscriptstyle
+local ShellScriptConfig = {
+	style = 'classic'
+}
 
 
 ---@class InnoSetupConfigProxy

@@ -14,3 +14,9 @@
 ---| 'x32' [# The x86_32 CPU Architecture]
 ---| 'arm64' [# The Arm64 CPU Architecture]
 ---| 'universal' [# Any Architecture]
+
+
+---@alias shellscriptstyle
+---| 'classic' [Just a simple echo of the current task]
+---| 'modern' [Progess Bars + Percent + echo of the current task]
+---| 'hypermodern' [Color/Emoji and other hip things]

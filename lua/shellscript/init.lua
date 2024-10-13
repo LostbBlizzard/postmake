@@ -1,5 +1,7 @@
 local build = {}
 
+local modern_syle_progress_barmax = 23
+
 ---@param path string
 ---@return string
 local function resolveoutputpath(path)
@@ -65,6 +67,7 @@ local AllowedSettingsFields =
 	"proxy",
 	"testmode",
 	"singlefile",
+	"style",
 }
 
 ---@param tab table
@@ -141,7 +144,7 @@ local function GetUploadfilePath(input, uploadfilecontext, onadded)
 	end
 	return newfilename
 end
-local function onconfig(outputfile, config, weburl, uploaddir, uninstallfile, testmode, uploadfilecontext)
+local function onconfig(outputfile, config, weburl, uploaddir, uninstallfile, testmode, uploadfilecontext, styleinfo)
 	---@type { archivepath: string, files: string[] }[]
 	local archivestomake = {}
 
@@ -366,6 +369,16 @@ function build.make(postmake, configs, settings)
 	local proxy = settings.proxy
 	local singlefile = settings.singlefile
 	local testmode = false
+	local style = settings.style
+	if style == nil then
+		style = 'classic'
+	end
+
+	if style == 'hypermodern' then
+		print("Style hypermodern has not be been added yet.")
+		os.exit(1)
+	end
+
 
 	if settings.testmode then
 		testmode = true
@@ -763,21 +776,65 @@ function build.make(postmake, configs, settings)
 		outputfile:write("echo >> " .. resolvefile .. " \n")
 		outputfile:write("echo 'if [ ! \"$(ls -A $1)\" ]; then' >> " .. resolvefile .. " \n")
 		outputfile:write("echo 'rmdir $1' >> " .. resolvefile .. " \n")
-		outputfile:write("echo 'echo removed directory $1' >> " .. resolvefile .. " \n")
+		if style == 'classic' then
+			outputfile:write("echo 'echo removed directory $1' >> " .. resolvefile .. " \n")
+		end
 		outputfile:write("echo 'fi' >> " .. resolvefile .. " \n")
 		outputfile:write("echo '}' >> " .. resolvefile .. " \n")
 		outputfile:write("echo >> " .. resolvefile .. " \n")
 
+
+		if style == 'modern' then
+			outputfile:write("echo \"ADDEDFILESCOUNT=${#ADDEDFILES[@]}\" >> " ..
+				resolvefile .. " \n")
+
+			outputfile:write("echo 'BAR=\'")
+			local barcount = math.max(2, modern_syle_progress_barmax)
+
+			for _ = 1, barcount, 1 do
+				outputfile:write("#")
+			end
+
+			outputfile:write("\'' >> " .. resolvefile .. " \n")
+
+			outputfile:write("echo 'ADDEDFILESINDEX=0' >> " ..
+				resolvefile .. " \n")
+		end
+
+
 		outputfile:write("for i in \"${ADDEDFILES[@]}\"\n")
 		outputfile:write("do\n\n")
-		outputfile:write("echo echo removeing \"${i}\" >> " .. resolvefile .. " \n")
-		outputfile:write("echo rm \"\\\"${i}\\\"\" >> " .. resolvefile .. " \n")
+
+		local cleanline = "\\\\033[0K\\\\r"
+
+		if style == 'classic' then
+			outputfile:write("echo echo removeing \"${i}\" >> " .. resolvefile .. " \n")
+			outputfile:write("echo rm \"\\\"${i}\\\"\" >> " .. resolvefile .. " \n")
+		else
+			outputfile:write("echo 'Num=$(( (ADDEDFILESINDEX * 100/ADDEDFILESCOUNT * 100) / 100))' >> " ..
+				resolvefile .. " \n")
+
+			-- outputfile:write("echo \"echo -ne \\\"(\\$Num)% | removeing ${i} \\\\r\"\\\" >> " ..
+			-- resolvefile .. " \n")
+			--
+			outputfile:write("echo \"echo -ne \\\"(\\$Num)% | removeing ${i} " ..
+				cleanline .. "\\\"\" >> " ..
+				resolvefile .. " \n")
+
+			outputfile:write("echo rm \"\\\"${i}\\\"\" >> " .. resolvefile .. " \n")
+			outputfile:write("echo 'ADDEDFILESINDEX=$(expr $ADDEDFILESINDEX + 1)' >> " ..
+				resolvefile .. " \n")
+		end
 		outputfile:write("done\n\n")
 
 
 
 		outputfile:write("echo >> " .. resolvefile .. "\n")
-		outputfile:write("echo echo removeing " .. resolvefile .. " >> " .. resolvefile .. " \n")
+
+		if style == 'classic' then
+			outputfile:write("echo echo removeing " .. resolvefile .. " >> " .. resolvefile .. " \n")
+		elseif style == 'modern' then
+		end
 
 		outputfile:write("echo  >> " .. resolvefile .. "\n")
 		outputfile:write("echo \"rm " .. resolvefile .. "\" >> " .. resolvefile .. " \n")
@@ -787,7 +844,11 @@ function build.make(postmake, configs, settings)
 		outputfile:write("echo  >> " .. resolvefile .. "\n")
 		outputfile:write("for i in \"${ADDEDPATHS[@]}\"\n")
 		outputfile:write("do\n\n")
-		outputfile:write("echo removepath \"${i}\" >> " .. resolvefile .. " \n")
+		if style == 'classic' then
+			outputfile:write("echo removepath \"${i}\" >> " .. resolvefile .. " \n")
+		else
+			outputfile:write(" :\n")
+		end
 		outputfile:write("done\n\n")
 
 		outputfile:write("echo  >> " .. resolvefile .. "\n")
@@ -801,8 +862,19 @@ function build.make(postmake, configs, settings)
 		outputfile:write("echo  >> " .. resolvefile .. "\n")
 
 
-		outputfile:write("echo echo Successfully Removed " ..
-			postmake.appname() .. " >> " .. resolvefile .. " \n")
+
+		if style == 'classic' then
+			outputfile:write("echo echo Successfully Removed " ..
+				postmake.appname() .. " >> " .. resolvefile .. " \n")
+		elseif style == 'modern' then
+			-- outputfile:write("echo echo -ne \\\"Successfully Removed " ..
+			-- 	postmake.appname() .. cleanline .. "\\\" >> " .. resolvefile .. " \n")
+
+			outputfile:write("echo echo -ne \\\"" .. cleanline .. "\\\" >> " .. resolvefile .. " \n")
+			-- outputfile:write("echo echo \"\" >> " .. resolvefile .. " \n")
+			outputfile:write("echo echo \"Successfully Removed " ..
+				postmake.appname() .. "\" >> " .. resolvefile .. " \n")
+		end
 
 		if proxy then
 			outputfile:write("echo fi >> " .. resolvefile .. " \n")
