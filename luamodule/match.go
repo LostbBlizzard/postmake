@@ -2,7 +2,9 @@ package luamodule
 
 import (
 	"io/fs"
+	"os"
 	"path/filepath"
+	"strings"
 	"unicode"
 
 	"github.com/gobwas/glob"
@@ -44,28 +46,54 @@ func MakeMatchModule(l *lua.LState) *lua.LTable {
 
 		basepath, regex := GetBasePathFromMatch(regexstring)
 
-		err := filepath.WalkDir(basepath, func(path string, d fs.DirEntry, err error) error {
-			if err != nil {
-				return nil
+		isrecursive := strings.Contains(regexstring, "**")
+
+		if isrecursive {
+			newregex := regex
+			if !strings.HasSuffix(newregex, "**") {
+				newregex = strings.ReplaceAll(newregex, "**", "*")
 			}
-			if !d.IsDir() {
-				glob, err := glob.Compile(regex)
-				value := glob.Match(regex)
 
+			glob, err := glob.Compile(newregex)
+			if err != nil {
+				panic(err)
+			}
+
+			err = filepath.WalkDir(basepath, func(path string, d fs.DirEntry, err error) error {
 				if err != nil {
-					panic(err)
+					return nil
 				}
+				if !d.IsDir() {
+					if glob.Match(path) {
+						l.Push(funcioncallback)
+						l.Push(lua.LString(path))
+						l.PCall(1, 0, nil)
+					}
+				}
+				return nil
+			})
+			if err != nil {
+				panic(err)
+			}
+		} else {
+			glob, err := glob.Compile(regex)
+			if err != nil {
+				panic(err)
+			}
 
-				if value {
+			items, err := os.ReadDir(basepath)
+			if err != nil {
+				panic(err)
+			}
+			for _, item := range items {
+				fullname := basepath + "/" + item.Name()
+
+				if glob.Match(fullname) {
 					l.Push(funcioncallback)
-					l.Push(lua.LString(path))
+					l.Push(lua.LString(fullname))
 					l.PCall(1, 0, nil)
 				}
 			}
-			return nil
-		})
-		if err != nil {
-			panic(err)
 		}
 
 		return 0

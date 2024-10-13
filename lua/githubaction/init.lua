@@ -202,7 +202,9 @@ function build.make(postmake, configs, settings)
 		end
 
 		indexfile:write("(" .. ostoosvarable(config.os()))
-		indexfile:write(" && process.arch == \"" .. archtonodearch(config.arch()) .. "\"")
+		if config.arch() ~= "universal" then
+			indexfile:write(" && process.arch == \"" .. archtonodearch(config.arch()) .. "\"")
+		end
 		indexfile:write(") {\n")
 		onconfig(indent, indexfile, config, weburl, uploaddir, uploadfilecontext)
 

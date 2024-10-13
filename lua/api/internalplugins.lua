@@ -26,6 +26,7 @@ function ShellScriptPlugin.GetUploadfilePath(input, uploadfilecontext, onadded) 
 ---@field uploaddir string
 ---@field proxy? ShellScriptConfigProxy
 ---@field uninstallfile? string
+---@field singlefile? string
 ---@field testmode? boolean
 local ShellScriptConfig = {}
 
@@ -38,7 +39,7 @@ local InnoSetupConfigProxy = {};
 
 ---@class InnoSetConfig
 ---@field LaunchProgram? string The Path to Launch On Startup.
----@field Appid string
+---@field AppId string
 ---@field proxy? InnoSetupConfigProxy	
 ---@field DefaultGroupName? string	
 ---@field OutputBaseFilename? string	
@@ -46,7 +47,6 @@ local InnoSetupConfigProxy = {};
 ---@field MyAppExeName? string	
 ---@field MyAppPublisher? string	
 ---@field MyAppVersion? string	
----@field AppId string	
 ---@field UninstallDelete? string[] Additional files or directories you want the uninstaller to delete See https://jrsoftware.org/ishelp/topic_uninstalldeletesection.htm
 local InnoSetConfig = {}
 

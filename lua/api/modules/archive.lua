@@ -6,7 +6,7 @@
 ---@class archivemodule
 local archivemodule = {}
 
----@param inputfiles string[]
+---@param inputfiles { [string]: string }
 ---@param output string
 function archivemodule.make_tar_gx(inputfiles, output) end
 

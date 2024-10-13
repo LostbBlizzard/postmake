@@ -289,7 +289,12 @@ function build.make(postmake, configs, settings)
 		local input = inputval.string
 
 		local reltoinnofile = util.innoinputapppath(input)
-		local newout = util.getdir(util.postmakepathtoinnoapppath(output))
+		local newout = util.postmakepathtoinnoapppath(output)
+
+		if not string.find(input, "%*") then
+			newout = util.getdir(newout)
+		end
+
 		outputfile:write("Source: \"" .. reltoinnofile .. "\"; DestDir: \"" .. newout .. "\";")
 		outputfile:write(" Flags: ignoreversion ")
 

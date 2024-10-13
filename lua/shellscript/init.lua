@@ -63,7 +63,8 @@ local AllowedSettingsFields =
 	"uploaddir",
 	"uninstallfile",
 	"proxy",
-	"testmode"
+	"testmode",
+	"singlefile",
 }
 
 ---@param tab table
@@ -141,6 +142,11 @@ local function GetUploadfilePath(input, uploadfilecontext, onadded)
 	return newfilename
 end
 local function onconfig(outputfile, config, weburl, uploaddir, uninstallfile, testmode, uploadfilecontext)
+	---@type { archivepath: string, files: string[] }[]
+	local archivestomake = {}
+
+	local archivefiles = {}
+
 	for inputtable, output in pairs(config.files) do
 		local input = inputtable.string
 
@@ -167,7 +173,7 @@ local function onconfig(outputfile, config, weburl, uploaddir, uninstallfile, te
 			end
 
 			if uninstallfile then
-				outputfile:write("ADDEDFILES+=('" .. newout .. "')\n")
+				outputfile:write("ADDEDFILES+=(\"" .. newout .. "\")\n")
 			end
 			outputfile:write("\n")
 		else
@@ -178,40 +184,95 @@ local function onconfig(outputfile, config, weburl, uploaddir, uninstallfile, te
 
 			local newout = GetUploadfilePath(basezippath, uploadfilecontext, nil)
 
-			local files = {}
+			local archive
+
+			for _, value in ipairs(archivestomake) do
+				if value.archivepath == newout then
+					archive = value
+					break
+				end
+			end
+
+			local isfirst = false
+			if archive == nil then
+				archive = {
+					archivepath = newout,
+					files = {}
+				}
+
+				table.insert(archivestomake, archive)
+				isfirst = true
+			end
 
 			postmake.match.matchpath(input, function(path)
-				local zippath = string.sub(path, #basepath - 1, #path)
+				local zippath = string.sub(path, #basepath + 1, #path)
 
-				files[path] = zippath
+				archive.files[path] = zippath
 			end)
 
-			if uploaddir ~= nil then
-				postmake.archive.make_tar_gx(files, uploaddir .. newout)
+			if isfirst then
+				local resolvenewout = resolveoutputpath("/" .. newout)
+
+				if testmode then
+					outputfile:write("echo 'Copying " .. newout .. "'\n")
+					-- outputfile:write("cp " .. input .. " " .. resolvenewout .. "\n")
+					outputfile:write("cp " ..
+						uploaddir .. newout .. " " .. resolvenewout .. "\n\n")
+				else
+					outputfile:write("echo 'Downloading " .. newout .. "'\n")
+					outputfile:write("curl -sSLJ " ..
+						weburl .. "/" .. newout .. " -o " .. resolvenewout .. "\n\n")
+				end
+
+				outputfile:write("echo 'Unziping " .. newout .. "'\n")
+				outputfile:write("tar -xzf " ..
+					resolvenewout .. " -C " .. resolveoutputpath(output) .. "\n")
+
+				outputfile:write("rm -rf " .. resolvenewout .. "\n\n")
 			end
-
-
-			local resolvenewout = resolveoutputpath("/" .. newout)
-
-			if testmode then
-				outputfile:write("echo 'Copying " .. newout .. "'\n")
-				outputfile:write("cp " .. input .. " " .. resolvenewout .. "\n")
-			else
-				outputfile:write("echo 'Downloading " .. newout .. "'\n")
-				outputfile:write("curl -sSLJ " ..
-					weburl .. "/" .. newout .. " -o " .. resolvenewout .. "\n")
-			end
-
-			outputfile:write("echo 'Unziping " .. newout .. "'\n")
-			outputfile:write("tar -xvzf " ..
-				resolvenewout .. " -C " .. resolveoutputpath(output) .. "\n\n")
 
 			if uninstallfile then
-				outputfile:write("ADDEDFILES+=(")
-				for _, value in pairs(files) do
-					outputfile:write(value .. " ")
+				local hasallinlist = true
+				local base = resolveoutputpath(output)
+
+				for _, value in pairs(archive.files) do
+					local inlist = false
+
+					local val = base .. "/" .. value
+					for _, file in ipairs(archivefiles) do
+						if val == file then
+							inlist = true
+							break
+						end
+					end
+
+					if inlist == false then
+						hasallinlist = false
+						break
+					end
 				end
-				outputfile:write("')\n")
+
+				if hasallinlist == false then
+					for _, value in pairs(archive.files) do
+						local inlist = false
+						local val = base .. "/" .. value
+
+						for _, file in ipairs(archivefiles) do
+							if val == file then
+								inlist = true
+								break
+							end
+						end
+
+						if not inlist then
+							table.insert(archivefiles, val)
+
+							outputfile:write("ADDEDFILES+=(\"")
+							outputfile:write(val)
+							outputfile:write("\")\n")
+						end
+					end
+				end
 			end
 		end
 	end
@@ -221,6 +282,14 @@ local function onconfig(outputfile, config, weburl, uploaddir, uninstallfile, te
 
 		if uninstallfile then
 			outputfile:write("ADDEDPATHS+=('" .. resolveoutputpath(output) .. "')\n")
+		end
+	end
+
+
+
+	if uploaddir ~= nil then
+		for _, value in ipairs(archivestomake) do
+			postmake.archive.make_tar_gx(value.files, uploaddir .. value.archivepath)
 		end
 	end
 end
@@ -295,6 +364,7 @@ function build.make(postmake, configs, settings)
 	local uploaddir = settings.uploaddir
 	local uninstallfile = settings.uninstallfile
 	local proxy = settings.proxy
+	local singlefile = settings.singlefile
 	local testmode = false
 
 	if settings.testmode then
@@ -498,9 +568,13 @@ function build.make(postmake, configs, settings)
 			outputfile:write("\n")
 			outputfile:write("if ")
 		end
-		outputfile:write(" [ \"$(uname)\" = \"" ..
-			ostounname(config.os()) ..
-			"\" ] && [ \"$(uname -p)\" = \"" .. archtounname(config.arch()) .. "\" ]; \nthen\n")
+
+		outputfile:write(" [ \"$(uname)\" = \"" .. ostounname(config.os()) .. "\" ]")
+
+		if config.arch() ~= "universal" then
+			outputfile:write("  && [ \"$(uname -p)\" = \"" .. archtounname(config.arch()) .. "\" ]")
+		end
+		outputfile:write("; \nthen\n")
 
 		outputfile:write("\n")
 
@@ -566,13 +640,17 @@ function build.make(postmake, configs, settings)
 
 		outputfile:write("mkdir -p \"$Installdir\" \n\n")
 
-		if proxy then
-			outputfile:write("MakeProxyProgram \n\n")
-		end
 
 		local dirtomake = {}
-		for _, output in pairs(config.files) do
-			local f = postmake.path.getparent(resolveoutputpath(output))
+		for inputvalue, output in pairs(config.files) do
+			local input = inputvalue.string
+			local f
+
+			if postmake.match.isbasicmatch(input) then
+				f = postmake.path.getparent(resolveoutputpath(output))
+			else
+				f = resolveoutputpath(output)
+			end
 
 			if not has_value(dirtomake, f) then
 				table.insert(dirtomake, f)
@@ -581,9 +659,16 @@ function build.make(postmake, configs, settings)
 					outputfile:write("ADDEDDIRS+=(' " .. f .. "')\n")
 				end
 			end
-			outputfile:write("\n")
+		end
+
+		if proxy then
+			outputfile:write("\nMakeProxyProgram \n\n")
+		end
+
+		if #dirtomake ~= 0 then
 			outputfile:write("\n")
 		end
+
 
 		onconfig(outputfile, config, weburl, uploaddir, uninstallfile, testmode, uploadfilecontext)
 
@@ -686,7 +771,7 @@ function build.make(postmake, configs, settings)
 		outputfile:write("for i in \"${ADDEDFILES[@]}\"\n")
 		outputfile:write("do\n\n")
 		outputfile:write("echo echo removeing \"${i}\" >> " .. resolvefile .. " \n")
-		outputfile:write("echo rm \"${i}\" >> " .. resolvefile .. " \n")
+		outputfile:write("echo rm \"\\\"${i}\\\"\" >> " .. resolvefile .. " \n")
 		outputfile:write("done\n\n")
 
 
