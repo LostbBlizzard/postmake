@@ -144,7 +144,35 @@ local function GetUploadfilePath(input, uploadfilecontext, onadded)
 	end
 	return newfilename
 end
-local function onconfig(outputfile, config, weburl, uploaddir, uninstallfile, testmode, uploadfilecontext, styleinfo)
+
+
+---@param outputfile file*
+---@param cmd plugincmd
+local function writecomds(outputfile, cmd)
+	local function ispath(path)
+		return string.find(path, "/", nil, true) or string.find(path, ".", nil, true)
+	end
+
+	local stringtowrite = ""
+
+	if ispath(cmd.cmd()) then
+		stringtowrite = stringtowrite .. resolveoutputpath(cmd.cmd())
+	else
+		stringtowrite = stringtowrite .. cmd.cmd()
+	end
+
+	for _, value in ipairs(cmd.pars()) do
+		stringtowrite = stringtowrite .. " "
+		if ispath(value) then
+			stringtowrite = stringtowrite .. resolveoutputpath(value)
+		else
+			stringtowrite = stringtowrite .. value
+		end
+	end
+
+	outputfile:write(stringtowrite)
+end
+local function onconfig(outputfile, config, weburl, uploaddir, uninstallfile, testmode, uploadfilecontext)
 	---@type { archivepath: string, files: string[] }[]
 	local archivestomake = {}
 
@@ -288,7 +316,19 @@ local function onconfig(outputfile, config, weburl, uploaddir, uninstallfile, te
 		end
 	end
 
+	for _, cmd in ipairs(config.installcmds) do
+		writecomds(outputfile, cmd)
+		outputfile:write("\n")
+	end
 
+
+	if uninstallfile then
+		for _, cmd in ipairs(config.uninstallcmds) do
+			outputfile:write("ADDEDUNINSTALLCMDS+=(\"")
+			writecomds(outputfile, cmd)
+			outputfile:write("\")\n")
+		end
+	end
 
 	if uploaddir ~= nil then
 		for _, value in ipairs(archivestomake) do
@@ -442,6 +482,11 @@ function build.make(postmake, configs, settings)
 		outputfile:write("ADDEDFILES=()\n")
 		outputfile:write("ADDEDMATCHS=()\n")
 		outputfile:write("ADDEDDIRS=()\n")
+	end
+
+	local hasuninstallcmds = true
+	if uninstallfile and hasuninstallcmds then
+		outputfile:write("ADDEDUNINSTALLCMDS=()\n")
 	end
 
 	if uninstallfile or haspathvarables then
@@ -836,6 +881,16 @@ function build.make(postmake, configs, settings)
 		outputfile:write("echo '}' >> " .. resolvefile .. " \n")
 		outputfile:write("echo >> " .. resolvefile .. " \n")
 
+
+		if hasuninstallcmds then
+			outputfile:write("echo >> " .. resolvefile .. " \n")
+			outputfile:write("for i in \"${ADDEDUNINSTALLCMDS[@]}\"\n")
+			outputfile:write("do\n\n")
+			outputfile:write("echo \"${i}\" >> " .. resolvefile .. " \n")
+
+			outputfile:write("done\n\n")
+			outputfile:write("echo >> " .. resolvefile .. " \n")
+		end
 
 		if style == 'modern' then
 			outputfile:write("echo \"ADDEDFILESCOUNT=${#ADDEDFILES[@]}\" >> " ..

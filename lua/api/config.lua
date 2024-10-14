@@ -68,4 +68,4 @@ function Config.addinstallcmd(cmd, pars) end
 --- A command to run when the program is being uninstalled before any files are removed
 --- @param cmd string
 --- @param pars string[]
-function Config.adduninstallcmdddinstallcmd(cmd, pars) end
+function Config.adduninstallcmd(cmd, pars) end
