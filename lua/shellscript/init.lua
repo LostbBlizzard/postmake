@@ -655,11 +655,14 @@ function build.make(postmake, configs, settings)
 
 
 		local dirtomake = {}
+
+		local subdirtomake = {}
 		for inputvalue, output in pairs(config.files) do
 			local input = inputvalue.string
 			local f
 
-			if postmake.match.isbasicmatch(input) then
+			local isbasicmatch = postmake.match.isbasicmatch(input)
+			if isbasicmatch then
 				f = postmake.path.getparent(resolveoutputpath(output))
 			else
 				f = resolveoutputpath(output)
@@ -668,8 +671,58 @@ function build.make(postmake, configs, settings)
 			if not has_value(dirtomake, f) then
 				table.insert(dirtomake, f)
 				outputfile:write("mkdir -p " .. f .. "\n")
-				if uninstallfile then
-					outputfile:write("ADDEDDIRS+=(' " .. f .. "')\n")
+			end
+
+
+
+			if uninstallfile and not isbasicmatch then
+				local basepath = postmake.match.getbasepath(input)
+
+				if true then
+					local p = output
+					while p ~= "" and p ~= "/" do
+						local val = resolveoutputpath(p)
+						if not has_value(subdirtomake, val) then
+							table.insert(subdirtomake, val)
+						end
+						p = postmake.path.getparent(p)
+					end
+				end
+				postmake.match.matchpath(input, function(path)
+					local subpath = string.sub(path, #basepath + 1, #path)
+
+					local p = postmake.path.getparent(subpath)
+
+					while p ~= "" and p ~= "." do
+						local dir = f .. "/" .. p
+						if not has_value(subdirtomake, dir) then
+							table.insert(subdirtomake, dir)
+						end
+						p = postmake.path.getparent(p)
+					end
+				end)
+			end
+		end
+
+		if uninstallfile then
+			table.sort(subdirtomake, function(a, b)
+				return #a > #b
+			end)
+
+			if #subdirtomake ~= 0 then
+				outputfile:write("#made by sub directorys\n")
+			end
+
+			for _, value in ipairs(subdirtomake) do
+				outputfile:write("ADDEDDIRS+=(\"" .. value .. "\")\n")
+			end
+
+			if #dirtomake ~= 0 then
+				outputfile:write("#made by main files\n")
+			end
+			for _, value in ipairs(dirtomake) do
+				if not has_value(subdirtomake, value) then
+					outputfile:write("ADDEDDIRS+=(\"" .. value .. "\")\n")
 				end
 			end
 		end
@@ -867,11 +920,7 @@ function build.make(postmake, configs, settings)
 			outputfile:write("echo echo Successfully Removed " ..
 				postmake.appname() .. " >> " .. resolvefile .. " \n")
 		elseif style == 'modern' then
-			-- outputfile:write("echo echo -ne \\\"Successfully Removed " ..
-			-- 	postmake.appname() .. cleanline .. "\\\" >> " .. resolvefile .. " \n")
-
 			outputfile:write("echo echo -ne \\\"" .. cleanline .. "\\\" >> " .. resolvefile .. " \n")
-			-- outputfile:write("echo echo \"\" >> " .. resolvefile .. " \n")
 			outputfile:write("echo echo \"Successfully Removed " ..
 				postmake.appname() .. "\" >> " .. resolvefile .. " \n")
 		end
