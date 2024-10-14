@@ -20,3 +20,8 @@
 ---| 'classic' [Just a simple echo of the current task]
 ---| 'modern' [Progess Bars + Percent + echo of the current task]
 ---| 'hypermodern' [Color/Emoji and other hip things]
+
+
+---@alias shellscriptcompressiontype
+---| 'tar.gz' [tar.gz files]
+---| 'zip' [zip files]

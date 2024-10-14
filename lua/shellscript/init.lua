@@ -68,6 +68,7 @@ local AllowedSettingsFields =
 	"testmode",
 	"singlefile",
 	"style",
+	"compressiontype",
 }
 
 ---@param tab table
@@ -172,11 +173,24 @@ local function writecomds(outputfile, cmd)
 
 	outputfile:write(stringtowrite)
 end
-local function onconfig(outputfile, config, weburl, uploaddir, uninstallfile, testmode, uploadfilecontext)
+
+---comment
+---@param outputfile file*
+---@param config pluginconfig
+---@param weburl string
+---@param uploaddir string
+---@param uninstallfile string
+---@param testmode boolean
+---@param uploadfilecontext any
+---@param compressiontype shellscriptcompressiontype
+---@param singlefile string
+local function onconfig(outputfile, config, weburl, uploaddir, uninstallfile, testmode, uploadfilecontext,
+			compressiontype, singlefile)
 	---@type { archivepath: string, files: string[] }[]
 	local archivestomake = {}
 
 	local archivefiles = {}
+
 
 	for inputtable, output in pairs(config.files) do
 		local input = inputtable.string
@@ -211,7 +225,13 @@ local function onconfig(outputfile, config, weburl, uploaddir, uninstallfile, te
 			local basepath = postmake.match.getbasepath(input)
 
 			local dirname = string.sub(basepath, 0, #basepath - 1)
-			local basezippath = dirname .. ".tar.gz"
+			local basezippath = dirname
+
+			if compressiontype == 'zip' then
+				basezippath = basezippath .. ".zip"
+			elseif compressiontype == 'tar.gz' then
+				basezippath = basezippath .. ".tar.gz"
+			end
 
 			local newout = GetUploadfilePath(basezippath, uploadfilecontext, nil)
 
@@ -256,8 +276,15 @@ local function onconfig(outputfile, config, weburl, uploaddir, uninstallfile, te
 				end
 
 				outputfile:write("echo 'Unziping " .. newout .. "'\n")
-				outputfile:write("tar -xzf " ..
-					resolvenewout .. " -C " .. resolveoutputpath(output) .. "\n")
+
+
+				if compressiontype == 'tar.gz' then
+					outputfile:write("tar -xzf " ..
+						resolvenewout .. " -C " .. resolveoutputpath(output) .. "\n")
+				elseif compressiontype == 'zip' then
+					outputfile:write("unzip -q " ..
+						resolvenewout .. " -d " .. resolveoutputpath(output) .. "\n")
+				end
 
 				outputfile:write("rm -rf " .. resolvenewout .. "\n\n")
 			end
@@ -332,7 +359,11 @@ local function onconfig(outputfile, config, weburl, uploaddir, uninstallfile, te
 
 	if uploaddir ~= nil then
 		for _, value in ipairs(archivestomake) do
-			postmake.archive.make_tar_gx(value.files, uploaddir .. value.archivepath)
+			if compressiontype == "tar.gz" then
+				postmake.archive.make_tar_gz(value.files, uploaddir .. value.archivepath)
+			elseif compressiontype == "zip" then
+				postmake.archive.make_zip(value.files, uploaddir .. value.archivepath)
+			end
 		end
 	end
 end
@@ -410,9 +441,14 @@ function build.make(postmake, configs, settings)
 	local singlefile = settings.singlefile
 	local testmode = false
 	local style = settings.style
+	local compressiontype = settings.compressiontype
 	if style == nil then
 		style = 'classic'
 	end
+	if compressiontype == nil then
+		compressiontype = "tar.gz"
+	end
+
 
 	if style == 'hypermodern' then
 		print("Style hypermodern has not be been added yet.")
@@ -781,7 +817,8 @@ function build.make(postmake, configs, settings)
 		end
 
 
-		onconfig(outputfile, config, weburl, uploaddir, uninstallfile, testmode, uploadfilecontext)
+		onconfig(outputfile, config, weburl, uploaddir, uninstallfile, testmode, uploadfilecontext,
+			compressiontype, singlefile)
 
 		for _, subconfig in ipairs(config.ifs) do
 			local isfirstiniflistloop = true
@@ -819,7 +856,9 @@ function build.make(postmake, configs, settings)
 				outputfile:write("\n")
 			end
 
-			onconfig(outputfile, subconfig, weburl, uploaddir, uninstallfile, testmode, uploadfilecontext)
+			onconfig(outputfile, subconfig, weburl, uploaddir, uninstallfile, testmode, uploadfilecontext,
+				compressiontype
+				, singlefile)
 
 
 			outputfile:write("\nfi\n\n")

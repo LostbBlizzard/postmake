@@ -55,7 +55,7 @@ function pluginif.flagname() end
 function pluginif.value() end
 
 ---@class pluginconfig
----@field files  table<pluginfile, string>
+---@field files  table<pluginfile, string,>
 ---@field flags  pluginflag[]
 ---@field paths  string[]
 ---@field ifs  subconfig[]

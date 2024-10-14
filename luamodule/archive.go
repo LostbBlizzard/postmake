@@ -11,7 +11,7 @@ import (
 
 func MakeArchiveModule(l *lua.LState) *lua.LTable {
 	table := l.NewTable()
-	l.SetField(table, "make_tar_gx", l.NewFunction(func(l *lua.LState) int {
+	l.SetField(table, "make_tar_gz", l.NewFunction(func(l *lua.LState) int {
 		inputfiles := utils.Tostringstringmap(l.ToTable(1))
 		outputpath := l.ToString(2)
 
@@ -32,8 +32,8 @@ func MakeArchiveModule(l *lua.LState) *lua.LTable {
 		return 1
 	}))
 	l.SetField(table, "make_zip", l.NewFunction(func(l *lua.LState) int {
-		outputpath := l.ToString(1)
-		inputfiles := utils.Tostringstringmap(l.ToTable(2))
+		inputfiles := utils.Tostringstringmap(l.ToTable(1))
+		outputpath := l.ToString(2)
 
 		files, err := archiver.FilesFromDisk(nil, inputfiles)
 		utils.CheckErr(err)

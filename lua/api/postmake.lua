@@ -80,3 +80,13 @@ function postmake.make(plugin, configs, pluginconfig) end
 --- @param path string
 --- @return unknown
 function postmake.require(path) end
+
+--- get all cofigs only for an os
+--- @param os ostype
+--- @return Config
+function postmake.foros(os) end
+
+--- get all cofigs only for an cpu arch
+--- @param os archtype
+--- @return Config
+function postmake.forarch(os) end

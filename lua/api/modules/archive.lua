@@ -8,7 +8,7 @@ local archivemodule = {}
 
 ---@param inputfiles { [string]: string }
 ---@param output string
-function archivemodule.make_tar_gx(inputfiles, output) end
+function archivemodule.make_tar_gz(inputfiles, output) end
 
 ---@param inputfiles string[]
 ---@param output string

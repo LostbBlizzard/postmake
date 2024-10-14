@@ -29,8 +29,10 @@ function ShellScriptPlugin.GetUploadfilePath(input, uploadfilecontext, onadded) 
 ---@field singlefile? string
 ---@field testmode? boolean
 ---@field style? shellscriptstyle
+---@field compressiontype? shellscriptcompressiontype
 local ShellScriptConfig = {
-	style = 'classic'
+	style = 'classic',
+	compressiontype = "tar.gz"
 }
 
 
