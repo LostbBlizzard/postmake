@@ -1,14 +1,12 @@
 package utils
 
 import (
-	"log"
-
 	lua "github.com/yuin/gopher-lua"
 )
 
 func CheckErr(err error) {
 	if err != nil {
-		log.Fatal(err)
+		panic(err.Error())
 	}
 }
 func Tabletoarray[T any](table *lua.LTable, convertfunc func(item lua.LValue) T) []T {

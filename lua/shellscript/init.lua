@@ -283,6 +283,10 @@ local function onconfig(outputfile, config, weburl, uploaddir, uninstallfile, te
 					archivepath = newout,
 					files = {}
 				}
+				if singlefile ~= nil then
+					myarchive.archivepath = output .. getzipext(compressiontype)
+				end
+
 
 				table.insert(archivestomake, myarchive)
 				isfirst = true
@@ -399,6 +403,11 @@ local function onconfig(outputfile, config, weburl, uploaddir, uninstallfile, te
 
 			if singlefile then
 				outpath = singledir .. "/" .. dirspit .. "/" .. value.archivepath
+
+				local parent = postmake.path.getparent(outpath);
+				if not postmake.os.exist(parent) then
+					postmake.os.mkdir(parent)
+				end
 			else
 				outpath = uploaddir .. value.archivepath
 			end
