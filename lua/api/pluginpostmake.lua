@@ -31,15 +31,23 @@ function plugincmd.pars() end
 function plugincmd.cmd() end
 
 ---@class pluginfile
----@field string string
 local pluginfile = {}
 
+---@return boolean
+function pluginfile.isexecutable() end
+
+---@return string
+function pluginfile.string() end
 
 ---@class subconfig
 ---@field string string
 ---@field paths  string[]
 ---@field files  table<pluginfile, string>
+---@field flags  pluginflag[]
 ---@field iflist  pluginif[]
+---@field enumflags  pluginenum[]
+---@field installcmds  plugincmd[]
+---@field uninstallcmds  plugincmd[]
 local subconfig = {}
 
 ---@class pluginif
@@ -55,19 +63,35 @@ function pluginif.flagname() end
 function pluginif.value() end
 
 ---@class pluginconfig
----@field files  table<pluginfile, string,>
+---@field files  table<pluginfile, string>
 ---@field flags  pluginflag[]
+---@field enumflags  pluginenum[]
 ---@field paths  string[]
 ---@field ifs  subconfig[]
 ---@field installcmds  plugincmd[]
 ---@field uninstallcmds  plugincmd[]
 local pluginconfig = {}
 
+---@class pluginenum
+local pluginenum = {}
+
+---@return string
+function pluginenum.flagname() end
+
+---@return string
+function pluginenum.defaultvalue() end
+
+---@return string[]
+function pluginenum.values() end
+
 ---@class pluginflag
 local pluginflag = {}
 
 ---@return string
 function pluginflag.flagname() end
+
+---@return boolean
+function pluginflag.defaultvalue() end
 
 ---@return ostype
 function pluginconfig.os() end

@@ -117,7 +117,7 @@ local function onclassdata(classdata)
 	file:write(classinfo.description)
 	file:close()
 end
-function makealias(aliasinfo)
+local function makealias(aliasinfo)
 	local filename = apidoc .. aliasinfo.name .. ".md"
 
 	local file = io.open(filename, "w")

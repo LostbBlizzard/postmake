@@ -387,8 +387,14 @@ func makeposttableconfig(l *lua.LState, table lua.LValue, configdata Config) {
 	for _, v := range configdata.files {
 
 		inputtable := l.NewTable()
-		l.SetField(inputtable, "string", lua.LString(v.input))
-		l.SetField(inputtable, "isexecutable", lua.LBool(v.isexecutable))
+		l.SetField(inputtable, "string", l.NewFunction(func(l *lua.LState) int {
+			l.Push(lua.LString(v.input))
+			return 1
+		}))
+		l.SetField(inputtable, "isexecutable", l.NewFunction(func(l *lua.LState) int {
+			l.Push(lua.LBool(v.isexecutable))
+			return 1
+		}))
 
 		l.SetTable(filestable, inputtable, lua.LString(v.output))
 

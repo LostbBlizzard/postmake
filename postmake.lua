@@ -26,10 +26,11 @@ local mac = postmake.newconfig("macos", "arm64")
 local addpathflag = all.newflag("Add Path", true)
 --- Add Your files
 local winsmainprogram = postmake.installdir() .. "bin/" .. postmake.appname .. ".exe"
-win.addxfile("./output/postmake.exe", winsmainprogram)
-gnu.addxfile("./output/postmake", postmake.installdir() .. "bin/" .. postmake.appname)
-mac.addxfile("./output/postmake_macos", postmake.installdir() .. "bin/" .. postmake.appname)
+win.addxfile("output/postmake.exe", winsmainprogram)
+gnu.addxfile("output/postmake", postmake.installdir() .. "bin/" .. postmake.appname)
+mac.addxfile("output/postmake_macos", postmake.installdir() .. "bin/" .. postmake.appname)
 
+all.addfile("lua/api/**.lua", postmake.installdir() .. "lua/definitions")
 all.If(addpathflag).addpath(postmake.installdir())
 
 local installwebsite = "https://github.com/LostbBlizzard/postmake/releases/tag/Release-" .. postmake.appversion
@@ -44,6 +45,8 @@ postmake.make(shellscript, { gnu, mac },
 			uninstallcmd = "uninstall",
 			program = postmake.installdir() .. "bin/" .. postmake.appname
 		},
+		singlefile = "shellscriptinstalldata",
+		testmode = true
 	});
 postmake.make(innosetup, { win },
 	---@type InnoSetConfig

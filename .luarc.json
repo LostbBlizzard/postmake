@@ -1,0 +1,4 @@
+{
+  "workspace.library": ["~/.luadocparser/lua/definitions","./lua/api/"],
+  "runtime.version": "Lua 5.3",
+}

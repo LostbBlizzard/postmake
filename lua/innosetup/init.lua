@@ -286,7 +286,7 @@ function build.make(postmake, configs, settings)
 	end
 
 	for inputval, output in pairs(config.files) do
-		local input = inputval.string
+		local input = inputval.string()
 
 		local reltoinnofile = util.innoinputapppath(input)
 		local newout = util.postmakepathtoinnoapppath(output)

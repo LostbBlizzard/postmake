@@ -8,6 +8,30 @@ local function resolveoutputpath(path)
 	return "$Installdir" .. path
 end
 
+local function getzipext(compressiontype)
+	if compressiontype == 'tar.gz' then
+		return ".tar.gz"
+	elseif compressiontype == 'zip' then
+		return ".zip"
+	end
+end
+local function makeunzipcmd(compressiontype, outfile, dirout)
+	if compressiontype == 'tar.gz' then
+		return "tar -xzf " .. outfile .. " -C " .. dirout .. "\n"
+	elseif compressiontype == 'zip' then
+		return "unzip -q " .. outfile .. " -d " .. dirout .. "\n"
+	end
+end
+
+---@param inputfiles { [string]: string }
+---@param output string
+local function archive(compressiontype, inputfiles, output)
+	if compressiontype == "tar.gz" then
+		postmake.archive.make_tar_gz(inputfiles, output)
+	elseif compressiontype == "zip" then
+		postmake.archive.make_zip(inputfiles, output)
+	end
+end
 ---@param path string
 ---@return string
 local function resolveoutputpathforinstalldir(path)
@@ -49,7 +73,7 @@ local function stringtoshellsrciptvarable(varablename)
 	return "var" .. varablename:gsub(" ", "_")
 end
 
----@param bool archtype
+---@param bool boolean
 ---@return string
 local function booltoyesorno(bool)
 	if bool then
@@ -174,46 +198,62 @@ local function writecomds(outputfile, cmd)
 	outputfile:write(stringtowrite)
 end
 
----comment
 ---@param outputfile file*
----@param config pluginconfig
+---@param config pluginconfig | subconfig
 ---@param weburl string
 ---@param uploaddir string
----@param uninstallfile string
+---@param uninstallfile string?
 ---@param testmode boolean
 ---@param uploadfilecontext any
 ---@param compressiontype shellscriptcompressiontype
----@param singlefile string
+---@param singlefile string?
+---@param dirspit string
 local function onconfig(outputfile, config, weburl, uploaddir, uninstallfile, testmode, uploadfilecontext,
-			compressiontype, singlefile)
+			compressiontype, singlefile, dirspit)
 	---@type { archivepath: string, files: string[] }[]
 	local archivestomake = {}
 
 	local archivefiles = {}
 
+	local singledir
+	if singlefile then
+		singledir = uploaddir .. singlefile
+	end
 
 	for inputtable, output in pairs(config.files) do
-		local input = inputtable.string
+		local input = inputtable.string()
 
 		if postmake.match.isbasicmatch(input) then
 			local newout = resolveoutputpath(output)
 
 			local newfilename = GetUploadfilePath(input, uploadfilecontext, function(input2, newfilename)
-				if uploaddir ~= nil then
+				if singlefile ~= nil then
+					local filepathtostore = singledir .. "/" .. dirspit .. output
+					postmake.os.mkdirall(postmake.path.getparent(filepathtostore))
+					postmake.os.cp(input2, filepathtostore)
+				elseif uploaddir ~= nil then
 					postmake.os.cp(input2, uploaddir .. newfilename)
 				end
 			end)
 
-			if testmode then
-				outputfile:write("echo 'Copying " .. postmake.path.getfilename(newout) .. "'\n")
-				outputfile:write("cp " .. input .. " " .. newout .. "\n")
+			if singlefile == nil then
+				if testmode then
+					outputfile:write("echo 'Copying " .. postmake.path.getfilename(newout) .. "'\n")
+					outputfile:write("cp " .. input .. " " .. newout .. "\n")
+				else
+					outputfile:write("echo 'Downloading " ..
+						postmake.path.getfilename(newout) .. "'\n")
+					outputfile:write("curl -sSLJ " ..
+						weburl .. "/" .. newfilename .. " -o " .. newout .. "\n")
+				end
 			else
-				outputfile:write("echo 'Downloading " .. postmake.path.getfilename(newout) .. "'\n")
-				outputfile:write("curl -sSLJ " ..
-					weburl .. "/" .. newfilename .. " -o " .. newout .. "\n")
+				outputfile:write("echo 'moveing " .. postmake.path.getfilename(newout) .. "'\n")
+				outputfile:write("mv " ..
+					resolveoutputpath("/" .. singlefile) ..
+					"/" .. dirspit .. output .. " " .. newout .. "\n")
 			end
 
-			if inputtable.isexecutable then
+			if inputtable.isexecutable() then
 				outputfile:write("chmod +x " .. newout .. "\n")
 			end
 
@@ -225,75 +265,71 @@ local function onconfig(outputfile, config, weburl, uploaddir, uninstallfile, te
 			local basepath = postmake.match.getbasepath(input)
 
 			local dirname = string.sub(basepath, 0, #basepath - 1)
-			local basezippath = dirname
-
-			if compressiontype == 'zip' then
-				basezippath = basezippath .. ".zip"
-			elseif compressiontype == 'tar.gz' then
-				basezippath = basezippath .. ".tar.gz"
-			end
+			local basezippath = dirname .. getzipext(compressiontype)
 
 			local newout = GetUploadfilePath(basezippath, uploadfilecontext, nil)
 
-			local archive
-
+			local myarchive
 			for _, value in ipairs(archivestomake) do
 				if value.archivepath == newout then
-					archive = value
+					myarchive = value
 					break
 				end
 			end
 
 			local isfirst = false
-			if archive == nil then
-				archive = {
+			if myarchive == nil then
+				myarchive = {
 					archivepath = newout,
 					files = {}
 				}
 
-				table.insert(archivestomake, archive)
+				table.insert(archivestomake, myarchive)
 				isfirst = true
 			end
 
 			postmake.match.matchpath(input, function(path)
 				local zippath = string.sub(path, #basepath + 1, #path)
 
-				archive.files[path] = zippath
+				myarchive.files[path] = zippath
 			end)
 
 			if isfirst then
 				local resolvenewout = resolveoutputpath("/" .. newout)
 
-				if testmode then
-					outputfile:write("echo 'Copying " .. newout .. "'\n")
-					-- outputfile:write("cp " .. input .. " " .. resolvenewout .. "\n")
-					outputfile:write("cp " ..
-						uploaddir .. newout .. " " .. resolvenewout .. "\n\n")
+				if singlefile ~= nil then
+					outputfile:write("echo 'Unziping " .. newout .. "'\n")
+
+					local ext = "." .. compressiontype
+					local file = singledir .. "/" .. dirspit .. output .. ext
+					local dirout = resolveoutputpath(output)
+
+					outputfile:write(makeunzipcmd(compressiontype, file, dirout) .. "\n")
 				else
-					outputfile:write("echo 'Downloading " .. newout .. "'\n")
-					outputfile:write("curl -sSLJ " ..
-						weburl .. "/" .. newout .. " -o " .. resolvenewout .. "\n\n")
+					if testmode then
+						outputfile:write("echo 'Copying " .. newout .. "'\n")
+						outputfile:write("cp " ..
+							uploaddir .. newout .. " " .. resolvenewout .. "\n\n")
+					else
+						outputfile:write("echo 'Downloading " .. newout .. "'\n")
+						outputfile:write("curl -sSLJ " ..
+							weburl .. "/" .. newout .. " -o " .. resolvenewout .. "\n\n")
+					end
+
+					outputfile:write("echo 'Unziping " .. newout .. "'\n")
+
+					outputfile:write(makeunzipcmd(compressiontype, resolvenewout,
+						resolveoutputpath(output)) .. "\n")
+
+					outputfile:write("rm -rf " .. resolvenewout .. "\n\n")
 				end
-
-				outputfile:write("echo 'Unziping " .. newout .. "'\n")
-
-
-				if compressiontype == 'tar.gz' then
-					outputfile:write("tar -xzf " ..
-						resolvenewout .. " -C " .. resolveoutputpath(output) .. "\n")
-				elseif compressiontype == 'zip' then
-					outputfile:write("unzip -q " ..
-						resolvenewout .. " -d " .. resolveoutputpath(output) .. "\n")
-				end
-
-				outputfile:write("rm -rf " .. resolvenewout .. "\n\n")
 			end
 
 			if uninstallfile then
 				local hasallinlist = true
 				local base = resolveoutputpath(output)
 
-				for _, value in pairs(archive.files) do
+				for _, value in pairs(myarchive.files) do
 					local inlist = false
 
 					local val = base .. "/" .. value
@@ -311,7 +347,7 @@ local function onconfig(outputfile, config, weburl, uploaddir, uninstallfile, te
 				end
 
 				if hasallinlist == false then
-					for _, value in pairs(archive.files) do
+					for _, value in pairs(myarchive.files) do
 						local inlist = false
 						local val = base .. "/" .. value
 
@@ -359,11 +395,15 @@ local function onconfig(outputfile, config, weburl, uploaddir, uninstallfile, te
 
 	if uploaddir ~= nil then
 		for _, value in ipairs(archivestomake) do
-			if compressiontype == "tar.gz" then
-				postmake.archive.make_tar_gz(value.files, uploaddir .. value.archivepath)
-			elseif compressiontype == "zip" then
-				postmake.archive.make_zip(value.files, uploaddir .. value.archivepath)
+			local outpath = ""
+
+			if singlefile then
+				outpath = singledir .. "/" .. dirspit .. "/" .. value.archivepath
+			else
+				outpath = uploaddir .. value.archivepath
 			end
+
+			archive(compressiontype, value.files, outpath)
 		end
 	end
 end
@@ -373,7 +413,7 @@ function build.GetUploadfilePath(input, uploadfilecontext, onadded)
 end
 
 ---@param postmake pluginpostmake
----@param configs pluginconfig
+---@param configs pluginconfig[]
 ---@param settings ShellScriptConfig
 function build.make(postmake, configs, settings)
 	print("---building shell script")
@@ -641,8 +681,27 @@ function build.make(postmake, configs, settings)
 		outputfile:write("\n")
 		outputfile:write("}\n\n")
 	end
-	if uploaddir ~= nil then
+	if not postmake.os.exist(uploaddir) then
 		postmake.os.mkdirall(uploaddir)
+	end
+
+	if singlefile ~= nil then
+		local ext = getzipext(compressiontype)
+		local mainfile = uploaddir .. singlefile .. ext
+		local maindir = uploaddir .. singlefile
+
+
+		if not postmake.os.exist(maindir) then
+			postmake.os.mkdirall(maindir)
+		end
+
+		postmake.os.ls(maindir, function(path)
+			postmake.os.rmall(path)
+		end)
+
+		if postmake.os.exist(mainfile) then
+			postmake.os.rm(mainfile)
+		end
 	end
 
 	outputfile:write("\n")
@@ -739,7 +798,7 @@ function build.make(postmake, configs, settings)
 
 		local subdirtomake = {}
 		for inputvalue, output in pairs(config.files) do
-			local input = inputvalue.string
+			local input = inputvalue.string()
 			local f
 
 			local isbasicmatch = postmake.match.isbasicmatch(input)
@@ -817,8 +876,33 @@ function build.make(postmake, configs, settings)
 		end
 
 
+		if singlefile ~= nil then
+			local ext = getzipext(compressiontype)
+			local mainfile = uploaddir .. singlefile .. ext
+
+			local outfile = resolveoutputpath("/" .. singlefile)
+			local outfilewithext = outfile .. ext
+
+			if testmode then
+				outputfile:write("echo 'Copying " .. singlefile .. "'\n")
+				outputfile:write("cp " .. mainfile .. " " .. outfilewithext .. "\n")
+			else
+				outputfile:write("echo 'Downloading " .. singlefile .. "'\n")
+				outputfile:write("curl -sSLJ " ..
+					weburl .. "/" .. singlefile .. ext .. " -o " .. outfilewithext .. "\n")
+			end
+
+			outputfile:write("mkdir -p " .. outfile .. "\n")
+			outputfile:write(makeunzipcmd(compressiontype, outfilewithext, outfile) .. "\n")
+
+			outputfile:write("rm " .. outfilewithext .. "\n")
+
+			outputfile:write("\n\n")
+		end
+
+		local dirspit = config.os() .. "-" .. config.arch()
 		onconfig(outputfile, config, weburl, uploaddir, uninstallfile, testmode, uploadfilecontext,
-			compressiontype, singlefile)
+			compressiontype, singlefile, dirspit)
 
 		for _, subconfig in ipairs(config.ifs) do
 			local isfirstiniflistloop = true
@@ -858,12 +942,16 @@ function build.make(postmake, configs, settings)
 
 			onconfig(outputfile, subconfig, weburl, uploaddir, uninstallfile, testmode, uploadfilecontext,
 				compressiontype
-				, singlefile)
+				, singlefile, dirspit)
 
 
 			outputfile:write("\nfi\n\n")
 		end
 
+		if singlefile then
+			local outfile = resolveoutputpath("/" .. singlefile)
+			outputfile:write("rm -rf " .. outfile .. "\n")
+		end
 		outputfile:write("echo Successfully Installed " .. postmake.appname() .. "\n")
 
 		if not islast then
@@ -1024,6 +1112,26 @@ function build.make(postmake, configs, settings)
 		end
 
 		outputfile:write("chmod +x " .. resolvefile .. "\n")
+	end
+
+
+	if singlefile ~= nil then
+		local ext = getzipext(compressiontype)
+		local mainfile = uploaddir .. singlefile .. ext
+		local maindir = uploaddir .. singlefile
+
+		---@type { [string]: string }
+		local inputfiles = {}
+
+		postmake.os.tree(maindir, function(path)
+			local relpath = string.sub(path, maindir:len())
+
+			if not postmake.os.IsDir(path) then
+				inputfiles[path] = relpath
+			end
+		end)
+
+		archive(compressiontype, inputfiles, mainfile)
 	end
 
 	outputfile:close()
