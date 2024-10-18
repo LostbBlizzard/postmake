@@ -26,7 +26,6 @@ local all = postmake.allconfig
 local win = postmake.newconfig("windows", "x64")
 local gnu = postmake.newconfig("linux", "x64")
 local mac = postmake.newconfig("macos", "x64")
---local unix = postmake.newconfig("macos", "x64")
 
 --- Add Your files
 
@@ -39,4 +38,8 @@ mac.addfile("main_macos", postmake.installdir() .. "./" .. postmake.appname)
 all.addfile("License.md", postmake.installdir() .. "./License.md")
 
 postmake.make(shellscript, { gnu, mac }, {});
-postmake.make(innosetup, { win }, { AppId = InnoAppID, LaunchProgram = winsmainprogram, LicenseFile = "License.md" });
+postmake.make(innosetup, { win },
+	---@type InnoSetConfig
+	{
+		AppId = InnoAppID, LaunchProgram = winsmainprogram, LicenseFile = "License.md"
+	});
