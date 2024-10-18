@@ -123,6 +123,18 @@ func addutills(l *lua.LState, table *lua.LTable) {
 	l.SetField(table, "archive", luamodule.MakeArchiveModule(l))
 	l.SetField(table, "path", luamodule.MakePathModule(l))
 	l.SetField(table, "compile", luamodule.MakeCompileModule(l, InternalFiles))
+
+	{
+		filetext, err := InternalFiles.ReadFile("lua/api/modules/lua.lua")
+		if err != nil {
+			panic(err)
+		}
+
+		if err := l.DoString(string(filetext)); err != nil {
+			panic(err)
+		}
+		l.SetField(table, "lua", l.ToTable(1))
+	}
 }
 
 func addconfigfuncions(L *lua.LState, table *lua.LTable, getonconfig func(func(config *Config)), prebuild *PreBuildContext) {

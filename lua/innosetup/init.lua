@@ -4,6 +4,14 @@ local build = {}
 local util = postmake.require("./util.lua")
 local makecodesecion = postmake.require("./secions/code.lua")
 
+local asserttype = postmake.lua.asserttype
+local assertnullabletype = postmake.lua.assertnullabletype
+-- local assertenum = postmake.lua.assertenum
+-- local assertnullablenum = postmake.lua.assertnullablenum
+local asserttypearray = postmake.lua.asserttypearray
+
+local valueor = postmake.lua.valueor
+
 -- Theres more but I wil add them when I Need them.
 local DefaultInnoSettinsList =
 {
@@ -141,11 +149,29 @@ function build.make(postmake, configs, settings)
 			os.exit(1)
 		end
 	end
+
+
+	asserttype(settings.AppId, "settings.AppId", "string")
+	assertnullabletype(settings.DefaultGroupName, "settings.DefaultGroupName", "string")
+	assertnullabletype(settings.OutputBaseFilename, "settings.OutputBaseFilename", "string")
+	assertnullabletype(settings.LaunchProgram, "settings.LaunchProgram", "string")
+	if settings.proxy ~= nil then
+		asserttype(settings.proxy.uninstallcmd, "settings.proxy.uninstallcmd", "string")
+		asserttype(settings.proxy.program, "settings.proxy.program", "string")
+		asserttype(settings.proxy.path, "settings.proxy.program", "string")
+	end
+	assertnullabletype(settings.MyAppExeName, "settings.MyAppExeName", "string")
+	assertnullabletype(settings.MyAppPublisher, "settings.MyAppPublisher", "string")
+	assertnullabletype(settings.MyAppVersion, "settings.MyAppVersion", "string")
+
+	if settings.UninstallDelete ~= nil then
+		asserttypearray(settings.UninstallDelete, "settings.UninstallDelete", "string")
+	end
 	--- end of boring checks
 
 	--- InnoSettings with context based Defaults
-	local Inno_DefaultGroupName = util.UseOrDefault(settings.DefaultGroupName, postmake.appname())
-	local Inno_OutputBaseFilename = util.UseOrDefault(settings.OutputBaseFilename, postmake.appname() .. "Setup")
+	local Inno_DefaultGroupName = valueor(settings.DefaultGroupName, postmake.appname())
+	local Inno_OutputBaseFilename = valueor(settings.OutputBaseFilename, postmake.appname() .. "Setup")
 	---Other Settings
 
 	---
@@ -168,14 +194,14 @@ function build.make(postmake, configs, settings)
 		"; postmake.make(innosetup, { windows_64 }, { OutputBaseFilename = \"coolbasefile\", DefaultGroupName = \"test\" });\n\n")
 
 
-	outputfile:write("#define MyAppName \"" .. util.UseOrDefault(settings.MyAppVersion, postmake.appname()) .. "\"\n")
+	outputfile:write("#define MyAppName \"" .. valueor(settings.MyAppVersion, postmake.appname()) .. "\"\n")
 	outputfile:write("#define MyAppVersion \"" ..
-		util.UseOrDefault(settings.MyAppVersion, postmake.appversion()) .. "\"\n")
+		valueor(settings.MyAppVersion, postmake.appversion()) .. "\"\n")
 	outputfile:write("#define MyAppPublisher \"" ..
-		util.UseOrDefault(settings.MyAppPublisher, postmake.apppublisher()) .. "\"\n")
-	outputfile:write("#define MyAppURL \"" .. util.UseOrDefault(settings.MyAppURL, postmake.appwebsite()) .. "\"\n")
+		valueor(settings.MyAppPublisher, postmake.apppublisher()) .. "\"\n")
+	outputfile:write("#define MyAppURL \"" .. valueor(settings.MyAppURL, postmake.appwebsite()) .. "\"\n")
 	outputfile:write("#define MyAppExeName \"" ..
-		util.UseOrDefault(settings.MyAppExeName, postmake.appname() .. ".exe") .. "\"\n\n")
+		valueor(settings.MyAppExeName, postmake.appname() .. ".exe") .. "\"\n\n")
 
 	outputfile:write("[Setup]\n")
 	outputfile:write(

@@ -8,6 +8,7 @@ local function resolveoutputpath(path)
 	return "$Installdir" .. path
 end
 
+---@param compressiontype shellscriptcompressiontype
 local function getzipext(compressiontype)
 	if compressiontype == 'tar.gz' then
 		return ".tar.gz"
@@ -15,6 +16,10 @@ local function getzipext(compressiontype)
 		return ".zip"
 	end
 end
+
+---@param compressiontype shellscriptcompressiontype
+---@param outfile string
+---@param dirout  string
 local function makeunzipcmd(compressiontype, outfile, dirout)
 	if compressiontype == 'tar.gz' then
 		return "tar -xzf " .. outfile .. " -C " .. dirout .. "\n"
@@ -32,6 +37,7 @@ local function archive(compressiontype, inputfiles, output)
 		postmake.archive.make_zip(inputfiles, output)
 	end
 end
+
 ---@param path string
 ---@return string
 local function resolveoutputpathforinstalldir(path)
@@ -83,6 +89,7 @@ local function booltoyesorno(bool)
 	end
 end
 
+---@type string[]
 local AllowedSettingsFields =
 {
 	"weburl",
@@ -95,55 +102,16 @@ local AllowedSettingsFields =
 	"compressiontype",
 }
 
----@param tab table
----@param val any
----@return boolean
-local function has_value_map(tab, val)
-	for _, value in pairs(tab) do
-		if value == val then
-			return true
-		end
-	end
 
-	return false
-end
+local has_value_map = postmake.lua.has_value_map
+local has_value = postmake.lua.has_value
+local has_key_map = postmake.lua.has_key_map
+local shallow_copy = postmake.lua.shallow_copy
 
----@param tab table
----@param val any
----@return boolean
-local function has_value(tab, val)
-	for _, value in ipairs(tab) do
-		if value == val then
-			return true
-		end
-	end
-
-	return false
-end
-
----@param tab table
----@param val any
----@return boolean
-local function has_key_map(tab, val)
-	for key, _ in pairs(tab) do
-		if key == val then
-			return true
-		end
-	end
-
-	return false
-end
-
----@param t any
----@return any
-local function shallow_copy(t)
-	local t2 = {}
-	for k, v in pairs(t) do
-		t2[k] = v
-	end
-	return t2
-end
-
+local asserttype = postmake.lua.asserttype
+local assertnullabletype = postmake.lua.assertnullabletype
+-- local ssertenum = postmake.lua.assertenum
+local assertnullablenum = postmake.lua.assertnullablenum
 
 ---@param input string
 ---@param uploadfilecontext { [string]: string }
@@ -481,6 +449,17 @@ function build.make(postmake, configs, settings)
 		os.exit(1)
 	end
 
+
+	assertnullabletype(settings.weburl, "settings.weburl", "string")
+	assertnullabletype(settings.uploaddir, "settings.uploaddir", "string")
+	assertnullabletype(settings.singlefile, "settings.singlefile", "string")
+	assertnullabletype(settings.uninstallfile, "settings.uninstallfile", "string")
+	if settings.proxy ~= nil then
+		asserttype(settings.proxy.program, "settings.proxy.program", "string")
+		asserttype(settings.proxy.uninstallcmd, "settings.proxy.program", "string")
+	end
+	assertnullablenum(settings.style, "settings.style", { "classic", "modern", "hypermodern" })
+	assertnullablenum(settings.compressiontype, "settings.style", { "zip", "tar.gz" })
 
 	--- passed in settings
 	local weburl = settings.weburl

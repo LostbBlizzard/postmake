@@ -5,7 +5,7 @@
 ---@diagnostic disable: missing-return
 ---@diagnostic disable: duplicate-doc-field
 
----@class postmake-
+---@class postmake
 ---@field appname string
 ---@field appversion string
 ---@field apppublisher string
@@ -19,6 +19,7 @@
 ---@field match matchmodule  a utility table with string matching funcions
 ---@field archive archivemodule  a utility table with archiveing files funcions
 ---@field compile compilemodule  a utility table with archiveing files funcions
+---@field lua luamodule
 postmake = {
 	appname = "app",
 	appversion = "0.0.1",
