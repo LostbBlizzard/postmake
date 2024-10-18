@@ -406,7 +406,7 @@ local function onconfig(outputfile, config, weburl, uploaddir, uninstallfile, te
 
 				local parent = postmake.path.getparent(outpath);
 				if not postmake.os.exist(parent) then
-					postmake.os.mkdir(parent)
+					postmake.os.mkdirall(parent)
 				end
 			else
 				outpath = uploaddir .. value.archivepath

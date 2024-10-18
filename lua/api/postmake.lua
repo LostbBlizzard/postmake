@@ -82,7 +82,7 @@ function postmake.make(plugin, configs, pluginconfig) end
 function postmake.require(path) end
 
 --- get all cofigs only for an os
---- @param os ostype
+--- @param os ostype|'unix'
 --- @return Config
 function postmake.foros(os) end
 
