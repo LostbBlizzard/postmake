@@ -14,7 +14,15 @@ func TestScript(t *testing.T) {
 	testdir := rootdir + "/tests/"
 	items, _ := os.ReadDir(testdir)
 
-	exec.Command("go build")
+	cmd := exec.Command("go", "build")
+	err := cmd.Start()
+	if err != nil {
+		panic(err)
+	}
+	err = cmd.Wait()
+	if err != nil {
+		panic(err)
+	}
 
 	for _, item := range items {
 		if item.IsDir() {
