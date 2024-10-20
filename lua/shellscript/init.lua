@@ -41,7 +41,7 @@ end
 ---@param path string
 ---@return string
 local function resolveoutputpathforinstalldir(path)
-	local r = path:gsub("~/", "")
+	local r = path:gsub("~/", "$HOME/")
 	return r
 end
 
@@ -537,7 +537,7 @@ function build.make(postmake, configs, settings)
 	outputfile:write("\n\n")
 
 
-	outputfile:write("Installdir=\"$HOME/" .. resolveoutputpathforinstalldir(postmake.appinstalldir()) .. "\" \n")
+	outputfile:write("Installdir=\"" .. resolveoutputpathforinstalldir(postmake.appinstalldir()) .. "\" \n")
 
 	outputfile:write("\n\n")
 
@@ -648,7 +648,7 @@ function build.make(postmake, configs, settings)
 			newuninstallp .. "\n")
 		outputfile:write("echo >> " .. newuninstallp .. "\n")
 
-		outputfile:write("echo 'Installdir=\"$HOME/" ..
+		outputfile:write("echo 'Installdir=\"" ..
 			resolveoutputpathforinstalldir(postmake.appinstalldir()) ..
 			"\"' >> " .. newuninstallp .. "\n\n")
 
@@ -962,7 +962,7 @@ function build.make(postmake, configs, settings)
 			outputfile:write("echo '#!/usr/bin/env bash' >> " .. resolvefile .. "\n")
 			outputfile:write("echo >> " .. resolvefile .. "\n")
 
-			outputfile:write("echo 'Installdir=\"$HOME/" ..
+			outputfile:write("echo 'Installdir=\"" ..
 				resolveoutputpathforinstalldir(postmake.appinstalldir()) ..
 				"\"' >> " .. resolvefile .. "\n\n")
 			outputfile:write("echo >> " .. resolvefile .. "\n\n")
