@@ -3,7 +3,17 @@
 ---@diagnostic disable: duplicate-set-field
 ---@diagnostic disable: missing-return
 
+---@class unamemodule
+local unamemodule = {}
+
+---@return archtype|'unknown'
+function unamemodule.machine() end
+
+---@return ostype|'unknown'
+function unamemodule.os() end
+
 ---@class osmodule
+---@field uname unamemodule
 local osmodule = {}
 
 ---@param input string

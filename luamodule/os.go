@@ -5,6 +5,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"runtime"
 
 	"postmake/utils"
 
@@ -120,5 +121,43 @@ func MakeOsModule(l *lua.LState) *lua.LTable {
 		l.Push(lua.LBool(value))
 		return 1
 	}))
+
+	unametable := l.NewTable()
+	{
+		l.SetField(unametable, "machine", l.NewFunction(func(l *lua.LState) int {
+			r := ""
+			if runtime.GOARCH == "386" {
+				r = "x32"
+			} else if runtime.GOARCH == "amd64" {
+				r = "x64"
+			} else if runtime.GOARCH == "arm64" {
+				r = "arm64"
+			} else {
+				r = "unknown"
+			}
+
+			l.Push(lua.LString(r))
+			return 1
+		}))
+		l.SetField(unametable, "os", l.NewFunction(func(l *lua.LState) int {
+			r := ""
+			if runtime.GOOS == "windows" {
+				r = "windows"
+			} else if runtime.GOOS == "linux" {
+				r = "linux"
+			} else if runtime.GOOS == "darwin" {
+				r = "macos"
+			} else if runtime.GOOS == "freebsd" {
+				r = "openbsd"
+			} else {
+				r = "unknown"
+			}
+
+			l.Push(lua.LString(r))
+			return 1
+		}))
+	}
+
+	l.SetField(table, "uname", unametable)
 	return table
 }
