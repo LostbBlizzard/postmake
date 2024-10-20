@@ -26,6 +26,10 @@ func TestScript(t *testing.T) {
 
 	for _, item := range items {
 		if item.IsDir() {
+			if item.Name() == "testutils" {
+				return
+			}
+
 			t.Run(item.Name(), func(t *testing.T) {
 
 				os.Chdir(rootdir)
@@ -35,8 +39,24 @@ func TestScript(t *testing.T) {
 				os.Chdir(workingdir)
 
 				cmd := exec.Command(rootdir+"/postmake", "build")
-				err := cmd.Run()
+				output, err := cmd.CombinedOutput()
+
+				println("---" + item.Name())
+				cmdoutput := string(output)
+				space := "  "
+
+				print(space)
+				for _, c := range cmdoutput {
+					print(string(c))
+					if c == '\n' {
+						print(space)
+					}
+				}
+				println("\n")
+
 				if err != nil {
+
+					println("---[test failed]")
 					t.Fatalf(err.Error())
 				}
 

@@ -133,7 +133,8 @@ func addutills(l *lua.LState, table *lua.LTable) {
 		if err := l.DoString(string(filetext)); err != nil {
 			panic(err)
 		}
-		l.SetField(table, "lua", l.ToTable(1))
+		l.SetField(table, "lua", l.ToTable(-1))
+		l.Pop(1)
 	}
 }
 
