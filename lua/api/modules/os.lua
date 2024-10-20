@@ -12,6 +12,9 @@ function unamemodule.machine() end
 ---@return ostype|'unknown'
 function unamemodule.os() end
 
+---@return boolean
+function unamemodule.isunix() end
+
 ---@class osmodule
 ---@field uname unamemodule
 local osmodule = {}

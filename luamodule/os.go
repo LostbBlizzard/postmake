@@ -139,6 +139,11 @@ func MakeOsModule(l *lua.LState) *lua.LTable {
 			l.Push(lua.LString(r))
 			return 1
 		}))
+		l.SetField(unametable, "isunix", l.NewFunction(func(l *lua.LState) int {
+			r := runtime.GOOS == "linux" || runtime.GOOS == "darwin" || runtime.GOOS == "freebsd"
+			l.Push(lua.LBool(r))
+			return 1
+		}))
 		l.SetField(unametable, "os", l.NewFunction(func(l *lua.LState) int {
 			r := ""
 			if runtime.GOOS == "windows" {
