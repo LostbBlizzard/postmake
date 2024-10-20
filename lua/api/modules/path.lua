@@ -17,3 +17,7 @@ function pathmodule.removeextetfilename(path) end
 ---@param path string
 ---@return string
 function pathmodule.getparent(path) end
+
+---@param path string
+---@return string
+function pathmodule.absolute(path) end
