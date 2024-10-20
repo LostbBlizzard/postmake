@@ -12,6 +12,12 @@ local FlagObject = {}
 ---@class EnumFlagObject
 local EnumFlagObject = {}
 
+--- @return ostype
+function Config.os() end
+
+--- @return archtype
+function Config.arch() end
+
 --- Add a file to be part of installer
 --- with 'output' being were it placed after the user runs the installer.
 --- @param input string
