@@ -1,5 +1,6 @@
 local build = {}
 
+local assertpathmustnothaveslash = postmake.lua.assertpathmustnothaveslash
 
 ---@type ShellScriptPlugin
 ---@diagnostic disable-next-line: assign-type-mismatch
@@ -106,6 +107,8 @@ function build.make(postmake, configs, settings)
 		print(" to be in the setting")
 		os.exit(1)
 	end
+
+	assertpathmustnothaveslash(postmake.appinstalldir(), "postmake.appinstalldir")
 
 	local outputpathdir = "./" .. postmake.output() .. "/githubaction/"
 	local srcdir = outputpathdir .. "./src/"

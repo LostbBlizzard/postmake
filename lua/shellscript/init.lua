@@ -112,6 +112,7 @@ local asserttype = postmake.lua.asserttype
 local assertnullabletype = postmake.lua.assertnullabletype
 -- local ssertenum = postmake.lua.assertenum
 local assertnullablenum = postmake.lua.assertnullablenum
+local assertpathmustnothaveslash = postmake.lua.assertpathmustnothaveslash
 
 ---@param input string
 ---@param uploadfilecontext { [string]: string }
@@ -461,6 +462,8 @@ function build.make(postmake, configs, settings)
 	assertnullablenum(settings.style, "settings.style", { "classic", "modern", "hypermodern" })
 	assertnullablenum(settings.compressiontype, "settings.style", { "zip", "tar.gz" })
 
+	assertpathmustnothaveslash(postmake.appinstalldir(), "postmake.appinstalldir")
+	assertpathmustnothaveslash(settings.uploaddir, "settings.uploaddir")
 	--- passed in settings
 	local weburl = settings.weburl
 	local uploaddir = settings.uploaddir

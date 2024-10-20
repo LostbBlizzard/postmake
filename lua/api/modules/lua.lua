@@ -185,4 +185,24 @@ function luamodule.asserttypearray(value, varablename, typevarable)
 	end
 end
 
+---@param value string
+---@param varablename string
+function luamodule.assertpathmusthaveslash(value, varablename)
+	local last = value[#value]
+
+	if last ~= "/" then
+		luamodule.panic("add the / at the end of the " .. varablename .. "(" .. value .. ")")
+	end
+end
+
+---@param value string
+---@param varablename string
+function luamodule.assertpathmustnothaveslash(value, varablename)
+	local last = value[#value]
+
+	if last == "/" then
+		luamodule.panic("remove the / at the end of the " .. varablename .. "(" .. value .. ")")
+	end
+end
+
 return luamodule

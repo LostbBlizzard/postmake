@@ -9,6 +9,7 @@ local assertnullabletype = postmake.lua.assertnullabletype
 -- local assertenum = postmake.lua.assertenum
 -- local assertnullablenum = postmake.lua.assertnullablenum
 local asserttypearray = postmake.lua.asserttypearray
+local assertpathmustnothaveslash = postmake.lua.assertpathmustnothaveslash
 
 local valueor = postmake.lua.valueor
 
@@ -167,6 +168,9 @@ function build.make(postmake, configs, settings)
 	if settings.UninstallDelete ~= nil then
 		asserttypearray(settings.UninstallDelete, "settings.UninstallDelete", "string")
 	end
+
+
+	assertpathmustnothaveslash(postmake.appinstalldir(), "postmake.appinstalldir")
 	--- end of boring checks
 
 	--- InnoSettings with context based Defaults
