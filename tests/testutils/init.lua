@@ -25,19 +25,18 @@ local configinfo = {}
 
 
 ---@param config Config
----@return testconfigdata
+---@return testconfigdata[]
 local function getconfig(config)
-	if not postmake.lua.has_value(configinfo, config) then
-		---@type testconfigdata
-		local newconfig = {
-			files = {}
-		}
-
-		configinfo[config] = newconfig
-
-		return configinfo[config]
+	---@type testconfigdata[]
+	local r = {}
+	if config == postmake.allconfig then
+		for _, value in pairs(configinfo) do
+			table.insert(r, value)
+		end
+	else
+		table.insert(r, configinfo[config])
 	end
-	return configinfo[config]
+	return r
 end
 
 ---@param config Config
@@ -55,7 +54,28 @@ function m.addxfile(config, fileinput, fileout)
 	}
 
 	local configdata = getconfig(config)
-	table.insert(configdata.files, newfile)
+	for _, value in ipairs(configdata) do
+		table.insert(value.files, newfile)
+	end
+	config.addxfile(fileinput, fileout)
+end
+
+---@param ostype ostype
+---@param archtype archtype
+---@return Config
+function m.newconfig(ostype, archtype)
+	asserttype(ostype, "ostype", "string")
+	asserttype(archtype, "archtype", "string")
+
+	local config = postmake.newconfig(ostype, archtype)
+
+	local newconfig = {
+		files = {}
+	}
+
+	configinfo[config] = newconfig
+
+	return config
 end
 
 ---@param config Config
@@ -73,7 +93,47 @@ function m.addfile(config, fileinput, fileout)
 	}
 
 	local configdata = getconfig(config)
-	table.insert(configdata.files, newfile)
+	for _, value in ipairs(configdata) do
+		table.insert(value.files, newfile)
+	end
+	config.addfile(fileinput, fileout)
+end
+
+---@param path string
+---@param configdata testconfigdata
+---@return boolean
+local function checkforfiles(path, configdata)
+	local isbad = false
+	for _, value in ipairs(configdata.files) do
+		if postmake.match.isbasicmatch(value.input) then
+			local outfile = path .. value.output
+
+			print("checking for " .. outfile)
+			---TODO check if file the current file is the same
+			if not postmake.os.exist(outfile) then
+				print("file is missing at " .. outfile .. "")
+				isbad = true
+			end
+		else
+			local basepath = postmake.path.absolute(postmake.match.getbasepath(value.input))
+			local dir = path .. value.output
+
+
+			postmake.match.matchpath(value.input, function(filepath)
+				local fullpath = postmake.path.absolute(filepath)
+				local filename = string.sub(fullpath, #basepath + 1, #fullpath)
+				local outfile = dir .. filename
+
+				print("checking for " .. outfile)
+				---TODO check if file the current file is the same
+				if not postmake.os.exist(outfile) then
+					print("file is missing at " .. outfile .. " cause by " .. value.input)
+					isbad = true
+				end
+			end)
+		end
+	end
+	return not isbad
 end
 
 --- @param configs Config[]
@@ -81,12 +141,57 @@ end
 --- @return boolean
 local function shellscriptcheck(configs, pluginconfig)
 	local outputfiles = postmake.output
+
 	if postmake.os.exist(outputfiles) then
 		postmake.os.rmall(outputfiles)
 	end
+	if postmake.os.exist(postmake.appinstalldir) then
+		postmake.os.rmall(postmake.appinstalldir)
+	end
+	if postmake.os.exist(pluginconfig.uploaddir) then
+		postmake.os.rmall(pluginconfig.uploaddir)
+	end
 
-	postmake.make(shellscript, configs, pluginconfig)
+	postmake.os.mkdirall(outputfiles)
+	postmake.os.mkdirall(postmake.appinstalldir)
+	postmake.os.mkdirall(pluginconfig.uploaddir)
 
+	local localconfig = deep_copy(pluginconfig)
+	localconfig.testmode = true
+
+	postmake.make(shellscript, configs, localconfig)
+
+	if postmake.os.uname.isunix() then
+		local srcpath = postmake.output .. ".sh"
+		os.execute("chmod +x " .. srcpath)
+
+
+		---@type integer?
+		local hascurrentconfig = nil
+
+		for index, value in ipairs(configs) do
+			if value.os() == postmake.os.uname.os() then
+				hascurrentconfig = index
+				break
+			end
+		end
+
+		if hascurrentconfig then
+			local exitcode = os.execute(srcpath)
+			if exitcode ~= 0 then
+				return false
+			end
+
+			local config = getconfig(configs[hascurrentconfig])[1]
+			if not checkforfiles(postmake.appinstalldir, config) then
+				return false
+			end
+		else
+			print("skiped bacuase it does not have os")
+		end
+
+		return true
+	end
 	return true
 end
 

@@ -231,10 +231,10 @@ local function onconfig(outputfile, config, weburl, uploaddir, uninstallfile, te
 			end
 			outputfile:write("\n")
 		else
-			local basepath = postmake.match.getbasepath(input)
+			local basepath = postmake.path.absolute(postmake.match.getbasepath(input))
 
-			local dirname = string.sub(basepath, 0, #basepath - 1)
-			local basezippath = dirname .. getzipext(compressiontype)
+			-- local dirname = string.sub(basepath, 0, #basepath - 1)
+			local basezippath = basepath .. getzipext(compressiontype)
 
 			local newout = GetUploadfilePath(basezippath, uploadfilecontext, nil)
 
@@ -262,7 +262,8 @@ local function onconfig(outputfile, config, weburl, uploaddir, uninstallfile, te
 			end
 
 			postmake.match.matchpath(input, function(path)
-				local zippath = string.sub(path, #basepath + 1, #path)
+				local fullpath = postmake.path.absolute(path)
+				local zippath = string.sub(fullpath, #basepath + 2, #fullpath)
 
 				myarchive.files[path] = zippath
 			end)
