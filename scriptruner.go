@@ -136,6 +136,19 @@ func addutills(l *lua.LState, table *lua.LTable) {
 		l.SetField(table, "lua", l.ToTable(-1))
 		l.Pop(1)
 	}
+
+	{
+		filetext, err := InternalFiles.ReadFile("lua/api/modules/json.lua")
+		if err != nil {
+			panic(err)
+		}
+
+		if err := l.DoString(string(filetext)); err != nil {
+			panic(err)
+		}
+		l.SetField(table, "json", l.ToTable(-1))
+		l.Pop(1)
+	}
 }
 
 func addconfigfuncions(L *lua.LState, table *lua.LTable, getonconfig func(func(config *Config)), prebuild *PreBuildContext) {

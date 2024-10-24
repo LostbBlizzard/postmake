@@ -20,6 +20,7 @@
 ---@field archive archivemodule  a utility table with archiveing files funcions
 ---@field compile compilemodule  a utility table with archiveing files funcions
 ---@field lua luamodule
+---@field json jsonmodule
 postmake = {
 	appname = "app",
 	appversion = "0.0.1",
