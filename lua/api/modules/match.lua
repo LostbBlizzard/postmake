@@ -20,4 +20,4 @@ function matchmodule.matchpath(string, callback) end
 
 ---@param patten string
 ---@return string
-function matchmodule.getbasepath(patten, stringtocheck) end
+function matchmodule.getbasepath(patten) end
