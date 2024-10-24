@@ -3,6 +3,11 @@
 ---@diagnostic disable: duplicate-set-field
 ---@diagnostic disable: missing-return
 
+---@class GitHubActionExportVarable
+---@field flag FlagObject
+---@field isrequired boolean
+local GitHubActionExportVarable = {}
+
 ---@class VersionSetting
 local VersionSetting = {}
 
@@ -12,6 +17,7 @@ local VersionSetting = {}
 ---@field version? VersionSetting
 ---@field singlefile? boolean
 ---@field compressiontype? shellscriptcompressiontype
+---@field export GitHubActionExportVarable[]
 local GitHubActionConfig = {}
 
 ---@class ShellScriptConfigProxy

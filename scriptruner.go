@@ -215,6 +215,22 @@ func addconfigfuncions(L *lua.LState, table *lua.LTable, getonconfig func(func(c
 		flagdefaultvalue := l.ToBool(2)
 
 		val := l.NewTable()
+		l.SetField(val, "name", l.NewFunction(func(l *lua.LState) int {
+			l.Push(lua.LString(flagname))
+			return 1
+		}))
+		l.SetField(val, "isflag", l.NewFunction(func(l *lua.LState) int {
+			l.Push(lua.LBool(true))
+			return 1
+		}))
+		l.SetField(val, "default", l.NewFunction(func(l *lua.LState) int {
+			r := "false"
+			if flagdefaultvalue {
+				r = "true"
+			}
+			l.Push(lua.LString(r))
+			return 1
+		}))
 
 		getonconfig(func(config *Config) {
 			config.flags = append(config.flags, Flag{
@@ -231,6 +247,18 @@ func addconfigfuncions(L *lua.LState, table *lua.LTable, getonconfig func(func(c
 		flagdefaultvalue := l.ToString(3)
 
 		val := l.NewTable()
+		l.SetField(val, "name", l.NewFunction(func(l *lua.LState) int {
+			l.Push(lua.LString(flagname))
+			return 1
+		}))
+		l.SetField(val, "isflag", l.NewFunction(func(l *lua.LState) int {
+			l.Push(lua.LBool(false))
+			return 1
+		}))
+		l.SetField(val, "default", l.NewFunction(func(l *lua.LState) int {
+			l.Push(lua.LString(flagdefaultvalue))
+			return 1
+		}))
 
 		getonconfig(func(config *Config) {
 			config.enumflags = append(config.enumflags, EnumFlag{

@@ -9,6 +9,15 @@ local Config = {}
 ---@class FlagObject
 local FlagObject = {}
 
+---@return string
+function FlagObject.name() end
+
+---@return boolean
+function FlagObject.isflag() end
+
+---@return string
+function FlagObject.default() end
+
 ---@class EnumFlagObject
 local EnumFlagObject = {}
 

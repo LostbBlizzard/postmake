@@ -12,7 +12,8 @@ local AllowedSettingsFields = {
 	"weburl",
 	"uploaddir",
 	"singlefile",
-	"version"
+	"version",
+	"export"
 }
 
 local programinstalldir = ""
@@ -25,6 +26,10 @@ local indent2 = indent .. indent
 
 local function flagtovarable(flagname)
 	return "flag_" .. flagname:gsub(" ", "_")
+end
+
+local function flagtoactioninput(flagname)
+	return flagname:gsub(" ", "_")
 end
 local function ostoosvarable(osname)
 	if osname == "windows" then
@@ -276,7 +281,7 @@ function build.make(postmake, configs, settings)
 		if issettingallowed then
 			goto continue
 		end
-		print("The Key '" .. key .. "' is not an  valid Shellscript Settins. Typo?\n")
+		print("The Key '" .. key .. "' is not an  valid github action Settings. Typo?\n")
 		goterrorinsettings = true
 		::continue::
 	end
@@ -332,7 +337,7 @@ function build.make(postmake, configs, settings)
 	---@type programdatabase?
 	local olddata = nil
 
-	---@type {name:string,value:boolean}[]
+	---@type {name:string,isflag:boolean,defaultvalue:string}[]
 	local allflags = {}
 
 	if version ~= nil then
@@ -399,7 +404,12 @@ function build.make(postmake, configs, settings)
 					end
 				end
 				if hasvalue == false then
-					table.insert(allflags, { name = value.flagname(), value = value.isflag })
+					table.insert(allflags,
+						{
+							name = value.flagname(),
+							isflag = value.isflag(),
+							defaultvalue = value.value()
+						})
 				end
 			end
 		end
@@ -440,8 +450,22 @@ function build.make(postmake, configs, settings)
 	local uploadfilecontext = {}
 
 	for _, value in ipairs(allflags) do
-		indexfile:write("var " ..
-			flagtovarable(value.name) .. " = " .. lua.valueif(value.value, "true", "false") .. "; \n")
+		local isexported = false
+		for _, exportitem in ipairs(settings.export) do
+			if exportitem.flag.name() == value.name then
+				isexported = true
+				break
+			end
+		end
+
+		if isexported then
+			indexfile:write("var " ..
+				flagtovarable(value.name) .. " = " .. "github.getInput(\"" .. value.name .. "\"); \n")
+		else
+			indexfile:write("var " ..
+				flagtovarable(value.name) ..
+				" = " .. value.defaultvalue .. "; \n")
+		end
 	end
 	if version then
 		indexfile:write("\nvar versiontodownload = github.getInput('version');\n")
@@ -551,7 +575,20 @@ function build.make(postmake, configs, settings)
 	actionymlfile:write("description: 'Installs " .. programname .. "'\n")
 	actionymlfile:write("runs:\n")
 	actionymlfile:write("  using: 'node20'\n")
-	actionymlfile:write("  main: './dist/index.js'\n")
+	actionymlfile:write("  main: './dist/index.js'\n\n")
+
+	local hasinputs = #settings.export ~= 0
+
+	if hasinputs then
+		actionymlfile:write("inputs: \n")
+
+		for _, value in ipairs(settings.export) do
+			actionymlfile:write("  " .. flagtoactioninput(value.flag.name()) .. ":\n")
+			actionymlfile:write("   description: '" .. "" .. "'\n")
+			actionymlfile:write("   require: " .. lua.valueif(value.isrequired, "true", "false") .. "\n")
+			actionymlfile:write("   default: '" .. value.flag.default() .. "'\n")
+		end
+	end
 
 	actionymlfile:close()
 
@@ -562,7 +599,7 @@ function build.make(postmake, configs, settings)
 	end
 
 
-	packagejsonfile:write("{")
+	packagejsonfile:write("{\n")
 	packagejsonfile:write(indent .. "\"name\": \"" .. ProjectName .. "\",\n")
 	packagejsonfile:write(indent .. "\"version\": \"" .. postmake.appversion() .. "\",\n")
 	packagejsonfile:write(indent .. "\"description\": \"Installs " .. programname .. "\",\n")
