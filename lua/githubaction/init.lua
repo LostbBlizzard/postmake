@@ -1,6 +1,8 @@
 local build = {}
 
 local assertpathmustnothaveslash = postmake.lua.assertpathmustnothaveslash
+local json = postmake.json
+local lua = postmake.lua
 
 ---@type ShellScriptPlugin
 ---@diagnostic disable-next-line: assign-type-mismatch
@@ -8,7 +10,9 @@ local shellscript = postmake.loadplugin("internal/shellscript")
 
 local AllowedSettingsFields = {
 	"weburl",
-	"uploaddir"
+	"uploaddir",
+	"singlefile",
+	"version"
 }
 
 local programinstalldir = ""
@@ -46,27 +50,208 @@ local function archtonodearch(arch)
 		os.exit(1)
 	end
 end
-local function onconfig(myindent, outputfile, config, weburl, uploaddir, uploadfilecontext)
-	for inputtable, output in pairs(config.files) do
-		local input = inputtable.string
-		local newout = resolveoutputpath(output)
 
-		local newfilename = shellscript.GetUploadfilePath(input, uploadfilecontext,
-			function(input2, newfilename)
-				if uploaddir ~= nil then
-					postmake.os.cp(input2, uploaddir .. newfilename)
-				end
-			end)
-
-		outputfile:write(myindent ..
-			"downloadfile(\"" .. weburl .. "/" .. newfilename .. "\",\"" .. newout .. "\");\n\n")
-	end
-
-	for _, output in pairs(config.paths) do
-		outputfile:write(myindent .. "addpath(\"" .. resolveoutputpath(output) .. "\");\n")
+---@param compressiontype shellscriptcompressiontype
+local function getzipext(compressiontype)
+	if compressiontype == 'tar.gz' then
+		return ".tar.gz"
+	elseif compressiontype == 'zip' then
+		return ".zip"
 	end
 end
 
+---@param inputfiles { [string]: string }
+---@param output string
+local function archive(compressiontype, inputfiles, output)
+	if compressiontype == "tar.gz" then
+		postmake.archive.make_tar_gz(inputfiles, output)
+	elseif compressiontype == "zip" then
+		postmake.archive.make_zip(inputfiles, output)
+	end
+end
+
+---@class versionprogramconfig
+---@field programversion programversion?
+
+---@param myindent string
+---@param outputfile file*
+---@param config pluginconfig
+---@param weburl string
+---@param uploaddir string
+---@param uploadfilecontext any
+---@param compressiontype shellscriptcompressiontype
+---@param versionprogramconfig versionprogramconfig?
+local function onconfig(myindent, outputfile, config, weburl, uploaddir, uploadfilecontext, compressiontype,
+			versionprogramconfig)
+	---@type { archivepath: string, files: string[] }[]
+	local archivestomake = {}
+
+	for inputtable, output in pairs(config.files) do
+		local input = inputtable.string()
+
+		if postmake.match.isbasicmatch(input) then
+			local newout = resolveoutputpath(output)
+			local newfilename = shellscript.GetUploadfilePath(input, uploadfilecontext,
+				function(input2, newfilename)
+					if uploaddir ~= nil then
+						postmake.os.cp(input2, uploaddir .. newfilename)
+					end
+				end)
+
+
+
+			if versionprogramconfig ~= nil then
+				---@type programfile
+				local newfile = {
+					fileinput = newfilename,
+					fileoutput = newout,
+				}
+
+				table.insert(versionprogramconfig.programversion.files, newfile)
+			else
+				outputfile:write(myindent ..
+					"downloadfile(\"" ..
+					weburl .. "/" .. newfilename .. "\",\"" .. newout .. "\");\n\n")
+			end
+		else
+			local basepath = postmake.path.absolute(postmake.match.getbasepath(input))
+			local basezippath = basepath .. getzipext(compressiontype)
+
+			local newout = shellscript.GetUploadfilePath(basezippath, uploadfilecontext, nil)
+
+			local myarchive
+			for _, value in ipairs(archivestomake) do
+				if value.archivepath == newout then
+					myarchive = value
+					break
+				end
+			end
+
+			local isfirst = false
+			if myarchive == nil then
+				myarchive = {
+					archivepath = newout,
+					files = {}
+				}
+				-- if singlefile ~= nil then
+				-- 	myarchive.archivepath = output .. getzipext(compressiontype)
+				-- end
+
+				if versionprogramconfig ~= nil then
+					---@type programfile
+					local newfile = {
+						fileinput = newout,
+						fileoutput = resolveoutputpath(output),
+					}
+
+					table.insert(versionprogramconfig.programversion.files, newfile)
+				end
+
+				table.insert(archivestomake, myarchive)
+				isfirst = true
+			end
+
+			postmake.match.matchpath(input, function(path)
+				local fullpath = postmake.path.absolute(path)
+				local zippath = string.sub(fullpath, #basepath + 2, #fullpath)
+
+				myarchive.files[path] = zippath
+			end)
+		end
+	end
+
+	for _, output in pairs(config.paths) do
+		if versionprogramconfig ~= nil then
+			table.insert(versionprogramconfig.programversion.paths, resolveoutputpath(output))
+		else
+			outputfile:write(myindent .. "addpath(\"" .. resolveoutputpath(output) .. "\");\n")
+		end
+	end
+
+
+	for _, value in ipairs(archivestomake) do
+		local outpath = ""
+
+		-- if singlefile then
+		-- 	outpath = singledir .. "/" .. dirspit .. "/" .. value.archivepath
+		--
+		-- 	local parent = postmake.path.getparent(outpath);
+		-- 	if not postmake.os.exist(parent) then
+		-- 		postmake.os.mkdirall(parent)
+		-- 	end
+		-- else
+		outpath = uploaddir .. value.archivepath
+		--- end
+
+		archive(compressiontype, value.files, outpath)
+	end
+end
+
+---@return string
+local function getversionindexjsfile()
+	local r = "try {\n"
+	r = r .. "const data = fs.readFileSync('database.json', 'utf8');\n"
+	r = r .. "const databaseinfo = JSON.parse(data);\n\n"
+	r = r .. "var foundversion = false;\n\n"
+	r = r .. "for (var i = 0; i < databaseinfo.versions.length; i++) {\n"
+	r = r .. "var programversion = databaseinfo.versions[i]\n"
+
+	r = r ..
+	    "if (programversion.version == versiontodownload || (i == databaseinfo.versions.length - 1 && versiontodownload == \" latest\")) {\n\n"
+
+	r = r .. "var downloadurl = databaseinfo.downloadurl\n"
+	r = r .. "for (var i = 0; i < programversion.programs.length; i++) {\n"
+
+	r = r .. "    var program = programversion.programs[i]\n"
+	r = r .. "    if (program.os == process.platform && program.arch == process.arch) {\n"
+	r = r ..
+	    "        console.log(\"downloading \" + programversion.version + \" \" + program.os + \"-\" + program.arch);\n"
+	r = r .. "        for (var i = 0; i < program.paths.length; i++) {\n"
+	r = r .. "            addpath(program.paths[i])\n"
+	r = r .. "        }\n"
+	r = r .. "        for (var i = 0; i < program.files.length; i++) {\n"
+	r = r .. "            var newfile = program.files[i]\n"
+	r = r .. "            downloadfile(downloadurl + \" / \" + newfile.fileinput, newfile.fileoutput)\n"
+	r = r .. "        }\n"
+	r = r .. "        foundversion = true\n"
+	r = r .. "        break\n"
+	r = r .. "    }\n"
+	r = r .. "}\n"
+	r = r .. "if (foundversion) {\n"
+	r = r .. "    break\n"
+	r = r .. "}\n"
+	r = r .. "}\n"
+	r = r .. "}\n"
+	r = r .. "} catch (err) {\n"
+	r = r ..
+	    "console.error(\"failed to install program because of error\");\n console.error(err); process.exit(1); \n"
+	r = r .. "}\n"
+
+	r = r .. "if (!foundversion) {\n"
+	r = r .. "console.log(\"This Program cant be Installed on this system\");\n"
+	r = r .. "process.exit(1);\n"
+	r = r .. "}"
+	return r
+end
+
+---@class programfile
+---@field fileinput string
+---@field fileoutput string
+
+---@class programversion
+---@field os ostype
+---@field arch archtype
+---@field files programfile[]
+---@field paths string[]
+
+---@class versiondata
+---@field version string
+---@field installdir string
+---@field downloadurl string
+---@field programs programversion[]
+
+---@class programdatabase
+---@field versions versiondata[]
 
 ---@param postmake pluginpostmake
 ---@param configs pluginconfig[]
@@ -119,6 +304,12 @@ function build.make(postmake, configs, settings)
 
 	local weburl = settings.weburl
 	local uploaddir = settings.uploaddir
+	local singlefile = settings.singlefile
+	local version = settings.version
+	local compressiontype = settings.compressiontype
+	if compressiontype == nil then
+		compressiontype = "tar.gz"
+	end
 
 	postmake.os.mkdirall(outputpathdir)
 	postmake.os.mkdirall(srcdir)
@@ -132,6 +323,46 @@ function build.make(postmake, configs, settings)
 
 	local workflowpath = outputpathdir .. "./.github/workflows/"
 	local ciworkflowpath = workflowpath .. "CI.yml"
+
+
+	---@type versionprogramconfig?
+	local versionprogramconfig = nil
+	---@type versiondata?
+	local newprogramversion = nil
+	---@type programdatabase?
+	local olddata = nil
+
+	---@type {name:string,value:boolean}[]
+	local allflags = {}
+
+	if version ~= nil then
+		local databasejsonpath = outputpathdir .. "database.json"
+		-- local olddatabasetext = ""
+
+		---@type programdatabase
+		-- local olddata = json.decode(olddatabasetext)
+
+		---@type programdatabase
+		olddata = { versions = {} }
+
+
+		---@type versiondata
+		newprogramversion = {
+			version = postmake.appversion(),
+			installdir = postmake.appinstalldir(),
+			downloadurl = settings.weburl,
+			singlefile = singlefile,
+			programs = {}
+		}
+		table.insert(olddata.versions, newprogramversion)
+	end
+
+	local indexfile = io.open(indexjsfilepath, "w")
+
+	if indexfile == nil then
+		print("unable to open file '" .. indexjsfilepath .. "'")
+		os.exit(1)
+	end
 
 	postmake.os.mkdirall(workflowpath)
 
@@ -158,6 +389,18 @@ function build.make(postmake, configs, settings)
 			end
 			if #subconfig.files ~= 0 then
 				hasfiles = true
+			end
+			for _, value in ipairs(subconfig.iflist) do
+				local hasvalue = false
+				for _, flagitem in ipairs(allflags) do
+					if flagitem.name == value.flagname() then
+						hasvalue = true
+						break
+					end
+				end
+				if hasvalue == false then
+					table.insert(allflags, { name = value.flagname(), value = value.isflag })
+				end
 			end
 		end
 	end
@@ -196,52 +439,103 @@ function build.make(postmake, configs, settings)
 
 	local uploadfilecontext = {}
 
+	for _, value in ipairs(allflags) do
+		indexfile:write("var " ..
+			flagtovarable(value.name) .. " = " .. lua.valueif(value.value, "true", "false") .. "; \n")
+	end
+	if version then
+		indexfile:write("\nvar versiontodownload = github.getInput('version');\n")
+		indexfile:write("if (versiontodownload == \"\") {\n")
+		indexfile:write("     versiontodownload = \"latest\";\n")
+		indexfile:write("}\n")
+		indexfile:write(getversionindexjsfile())
+	end
+
 	indexfile:write("\n\n")
 	for configindex, config in ipairs(configs) do
-		if configindex == 1 then
-			indexfile:write("if ")
-		else
-			indexfile:write("else if ")
+		if not version then
+			if configindex == 1 then
+				indexfile:write("if ")
+			else
+				indexfile:write("else if ")
+			end
+
+			indexfile:write("(" .. ostoosvarable(config.os()))
+			if config.arch() ~= "universal" then
+				indexfile:write(" && process.arch == \"" .. archtonodearch(config.arch()) .. "\"")
+			end
+			indexfile:write(") {\n")
 		end
 
-		indexfile:write("(" .. ostoosvarable(config.os()))
-		if config.arch() ~= "universal" then
-			indexfile:write(" && process.arch == \"" .. archtonodearch(config.arch()) .. "\"")
+		if version ~= nil then
+			---@type programversion
+			local newprogram = {
+				os = config.os(),
+				arch = config.arch(),
+				files = {},
+				paths = {}
+			}
+
+			for file, path in pairs(config.files) do
+			end
+
+			versionprogramconfig = {}
+			versionprogramconfig.programversion = newprogram
+
+			table.insert(newprogramversion.programs, newprogram)
 		end
-		indexfile:write(") {\n")
-		onconfig(indent, indexfile, config, weburl, uploaddir, uploadfilecontext)
+
+		onconfig(indent, indexfile, config, weburl, uploaddir, uploadfilecontext, compressiontype,
+			versionprogramconfig)
+
+
 
 		for _, output in ipairs(config.ifs) do
 			local isfirstiniflistloop = true
 
-			for _, output2 in ipairs(output.iflist) do
-				if not isfirstiniflistloop then
-					indexfile:write(" &&")
-				else
-					indexfile:write(indent .. "if (")
+			if not version then
+				for _, output2 in ipairs(output.iflist) do
+					if not isfirstiniflistloop then
+						indexfile:write(" &&")
+					else
+						indexfile:write(indent .. "if (")
+					end
+
+					if output2.isflag() then
+						indexfile:write(flagtovarable(output2.flagname()))
+					else
+						indexfile:write(flagtovarable(output2.flagname()) ..
+							"\" == \"" .. output2.value() .. "\" ] ")
+					end
+
+					isfirstiniflistloop = false
 				end
 
-				if output2.isflag() then
-					indexfile:write(flagtovarable(output2.flagname()))
-				else
-					indexfile:write(flagtovarable(output2.flagname()) ..
-						"\" == \"" .. output2.value() .. "\" ] ")
-				end
-
-				isfirstiniflistloop = false
+				indexfile:write(") {\n")
 			end
-			indexfile:write(") {\n")
 
-			onconfig(indent2, indexfile, output, weburl, uploaddir, uploadfilecontext)
+			onconfig(indent2, indexfile, output, weburl, uploaddir, uploadfilecontext, compressiontype,
+				versionprogramconfig)
 
-			indexfile:write(indent .. "}\n\n")
+
+			if not version then
+				indexfile:write(indent .. "}\n\n")
+			end
 		end
+
+		if not version then
+			indexfile:write("}\n")
+		end
+	end
+
+
+	if not version then
+		indexfile:write("else {\n")
+		indexfile:write(indent .. "console.log(\"This Program cant be Installed on this system\");\n")
+		indexfile:write(indent .. "process.exit(1)\n")
 		indexfile:write("}\n")
 	end
-	indexfile:write("else {\n")
-	indexfile:write(indent .. "console.log(\"This Program has cant be Installed on this system\");\n")
-	indexfile:write(indent .. "process.exit(1)\n")
-	indexfile:write("}\n")
+
 	indexfile:close()
 
 	local actionymlfile = io.open(actionymlpath, "w")
@@ -365,6 +659,23 @@ function build.make(postmake, configs, settings)
 	workflowfile:write("      run: " .. programname .. " --help\n")
 
 	workflowfile:close()
+
+
+	if version ~= nil then
+		local databasejsonpath = outputpathdir .. "database.json"
+
+		local databasefile = io.open(databasejsonpath, "w")
+		if databasefile == nil then
+			print("unable to open file '" .. databasejsonpath .. "'")
+			os.exit(1)
+		end
+
+		---@type string
+		local newtext = json.encode(olddata)
+
+		databasefile:write(newtext)
+		databasefile:close()
+	end
 end
 
 return build

@@ -3,9 +3,15 @@
 ---@diagnostic disable: duplicate-set-field
 ---@diagnostic disable: missing-return
 
+---@class VersionSetting
+local VersionSetting = {}
+
 ---@class GitHubActionConfig
 ---@field weburl string
 ---@field uploaddir? string
+---@field version? VersionSetting
+---@field singlefile? boolean
+---@field compressiontype? shellscriptcompressiontype
 local GitHubActionConfig = {}
 
 ---@class ShellScriptConfigProxy
