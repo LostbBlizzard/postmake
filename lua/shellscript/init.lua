@@ -100,6 +100,7 @@ local AllowedSettingsFields =
 	"singlefile",
 	"style",
 	"compressiontype",
+	"dependencies",
 }
 
 

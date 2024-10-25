@@ -87,9 +87,16 @@ end
 ---@param compressiontype shellscriptcompressiontype
 ---@param versionprogramconfig versionprogramconfig?
 local function onconfig(myindent, outputfile, config, weburl, uploaddir, uploadfilecontext, compressiontype,
+			singlefile, dirspit,
 			versionprogramconfig)
 	---@type { archivepath: string, files: string[] }[]
 	local archivestomake = {}
+
+
+	local singledir
+	if singlefile then
+		singledir = uploaddir .. singlefile
+	end
 
 	for inputtable, output in pairs(config.files) do
 		local input = inputtable.string()
@@ -98,7 +105,11 @@ local function onconfig(myindent, outputfile, config, weburl, uploaddir, uploadf
 			local newout = resolveoutputpath(output)
 			local newfilename = shellscript.GetUploadfilePath(input, uploadfilecontext,
 				function(input2, newfilename)
-					if uploaddir ~= nil then
+					if singlefile ~= nil then
+						local filepathtostore = singledir .. "/" .. dirspit .. output
+						postmake.os.mkdirall(postmake.path.getparent(filepathtostore))
+						postmake.os.cp(input2, filepathtostore)
+					elseif uploaddir ~= nil then
 						postmake.os.cp(input2, uploaddir .. newfilename)
 					end
 				end)
@@ -138,9 +149,9 @@ local function onconfig(myindent, outputfile, config, weburl, uploaddir, uploadf
 					archivepath = newout,
 					files = {}
 				}
-				-- if singlefile ~= nil then
-				-- 	myarchive.archivepath = output .. getzipext(compressiontype)
-				-- end
+				if singlefile ~= nil then
+					myarchive.archivepath = output .. getzipext(compressiontype)
+				end
 
 				if versionprogramconfig ~= nil then
 					---@type programfile
@@ -177,16 +188,16 @@ local function onconfig(myindent, outputfile, config, weburl, uploaddir, uploadf
 	for _, value in ipairs(archivestomake) do
 		local outpath = ""
 
-		-- if singlefile then
-		-- 	outpath = singledir .. "/" .. dirspit .. "/" .. value.archivepath
-		--
-		-- 	local parent = postmake.path.getparent(outpath);
-		-- 	if not postmake.os.exist(parent) then
-		-- 		postmake.os.mkdirall(parent)
-		-- 	end
-		-- else
-		outpath = uploaddir .. value.archivepath
-		--- end
+		if singlefile then
+			outpath = singledir .. "/" .. dirspit .. "/" .. value.archivepath
+
+			local parent = postmake.path.getparent(outpath);
+			if not postmake.os.exist(parent) then
+				postmake.os.mkdirall(parent)
+			end
+		else
+			outpath = uploaddir .. value.archivepath
+		end
 
 		archive(compressiontype, value.files, outpath)
 	end
@@ -286,7 +297,7 @@ function build.make(postmake, configs, settings)
 		::continue::
 	end
 	if goterrorinsettings then
-		print("Shellscript only allows for ")
+		print("GithubAction  only allows for ")
 		for i, field in ipairs(AllowedSettingsFields) do
 			print(field)
 
@@ -318,6 +329,10 @@ function build.make(postmake, configs, settings)
 
 	postmake.os.mkdirall(outputpathdir)
 	postmake.os.mkdirall(srcdir)
+
+	if settings.uploaddir ~= nil then
+		postmake.os.mkdirall(settings.uploaddir)
+	end
 
 	local indexjsfilepath = srcdir .. "index.js"
 	local actionymlpath = outputpathdir .. "action.yml"
@@ -360,6 +375,24 @@ function build.make(postmake, configs, settings)
 			programs = {}
 		}
 		table.insert(olddata.versions, newprogramversion)
+	end
+
+	if singlefile ~= nil then
+		local ext = getzipext(compressiontype)
+		local mainfile = uploaddir .. singlefile .. ext
+		local maindir = uploaddir .. singlefile
+
+		if not postmake.os.exist(maindir) then
+			postmake.os.mkdirall(maindir)
+		end
+
+		postmake.os.ls(maindir, function(path)
+			postmake.os.rmall(path)
+		end)
+
+		if postmake.os.exist(mainfile) then
+			postmake.os.rm(mainfile)
+		end
 	end
 
 	local indexfile = io.open(indexjsfilepath, "w")
@@ -509,7 +542,9 @@ function build.make(postmake, configs, settings)
 			table.insert(newprogramversion.programs, newprogram)
 		end
 
-		onconfig(indent, indexfile, config, weburl, uploaddir, uploadfilecontext, compressiontype,
+		local dirspit = config.os() .. "-" .. config.arch()
+		onconfig(indent, indexfile, config, weburl, uploaddir, uploadfilecontext, compressiontype, singlefile,
+			dirspit,
 			versionprogramconfig)
 
 
@@ -538,7 +573,9 @@ function build.make(postmake, configs, settings)
 				indexfile:write(") {\n")
 			end
 
+			local dirspit = config.os() .. "-" .. config.arch()
 			onconfig(indent2, indexfile, output, weburl, uploaddir, uploadfilecontext, compressiontype,
+				singlefile, dirspit,
 				versionprogramconfig)
 
 
@@ -712,6 +749,25 @@ function build.make(postmake, configs, settings)
 
 		databasefile:write(newtext)
 		databasefile:close()
+	end
+
+	if singlefile ~= nil then
+		local ext = getzipext(compressiontype)
+		local mainfile = uploaddir .. singlefile .. ext
+		local maindir = uploaddir .. singlefile
+
+		---@type { [string]: string }
+		local inputfiles = {}
+
+		postmake.os.tree(maindir, function(path)
+			local relpath = string.sub(path, maindir:len())
+
+			if not postmake.os.IsDir(path) then
+				inputfiles[path] = relpath
+			end
+		end)
+
+		archive(compressiontype, inputfiles, mainfile)
 	end
 end
 
