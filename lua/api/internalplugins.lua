@@ -11,6 +11,11 @@ local GitHubActionExportVarable = {}
 ---@class VersionSetting
 local VersionSetting = {}
 
+---@class GitHubActionConfigDependencies
+---@field linux? LinuxShellScriptConfigDependencies
+---@field macos? MacOsShellScriptConfigDependencies
+---@field windows? WindowsGithubConfigDependencies
+
 ---@class GitHubActionConfig
 ---@field weburl string
 ---@field uploaddir? string
@@ -18,6 +23,7 @@ local VersionSetting = {}
 ---@field singlefile? boolean
 ---@field compressiontype? shellscriptcompressiontype
 ---@field export GitHubActionExportVarable[]
+---@field dependencies? GitHubActionConfigDependencies
 local GitHubActionConfig = {}
 
 ---@class ShellScriptConfigProxy
@@ -43,6 +49,8 @@ function ShellScriptPlugin.GetUploadfilePath(input, uploadfilecontext, onadded) 
 ---@field packages? LinuxShellScriptConfigDependencies
 
 ---@class MacOsShellScriptConfigDependencies
+
+---@class WindowsGithubConfigDependencies
 
 ---@class ShellScriptConfigDependencies
 ---@field linux? LinuxShellScriptConfigDependencies
