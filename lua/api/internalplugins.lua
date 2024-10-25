@@ -34,6 +34,20 @@ local ShellScriptPlugin = {};
 ---@return string
 function ShellScriptPlugin.GetUploadfilePath(input, uploadfilecontext, onadded) end
 
+---@class LinuxShellScriptConfigDependenciesPackages
+---@field apt { [string]: string }
+---@field pacman { [string]: string }
+---@field yum { [string]: string }
+
+---@class LinuxShellScriptConfigDependencies
+---@field packages? LinuxShellScriptConfigDependencies
+
+---@class MacOsShellScriptConfigDependencies
+
+---@class ShellScriptConfigDependencies
+---@field linux? LinuxShellScriptConfigDependencies
+---@field macos? MacOsShellScriptConfigDependencies
+
 ---@class ShellScriptConfig
 ---@field weburl string
 ---@field uploaddir string
@@ -43,6 +57,7 @@ function ShellScriptPlugin.GetUploadfilePath(input, uploadfilecontext, onadded) 
 ---@field testmode? boolean
 ---@field style? shellscriptstyle
 ---@field compressiontype? shellscriptcompressiontype
+---@field dependencies? ShellScriptConfigDependencies
 local ShellScriptConfig = {
 	style = 'classic',
 	compressiontype = "tar.gz"
