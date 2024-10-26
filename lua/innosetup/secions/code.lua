@@ -131,4 +131,22 @@ return function(outputfile, config)
 	end
 
 	outputfile:write("end;\n")
+
+	local needsarchchecks = true
+	if needsarchchecks then
+		outputfile:write("function onlyon_x64(): Boolean;\n")
+		outputfile:write("begin\n")
+		outputfile:write(indent .. "Result := true;// this function is wrong will add later.\n")
+		outputfile:write("end;\n")
+
+		outputfile:write("function onlyon_x32(): Boolean;\n")
+		outputfile:write("begin\n")
+		outputfile:write(indent .. "Result := false;// this function is wrong will add later.\n")
+		outputfile:write("end;\n")
+
+		outputfile:write("function onlyon_arm64(): Boolean;\n")
+		outputfile:write("begin\n")
+		outputfile:write(indent .. "Result := false;// this function is wrong will add later.\n")
+		outputfile:write("end;\n")
+	end
 end

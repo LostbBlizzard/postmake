@@ -12,6 +12,7 @@ local asserttypearray = postmake.lua.asserttypearray
 local assertpathmustnothaveslash = postmake.lua.assertpathmustnothaveslash
 
 local valueor = postmake.lua.valueor
+local plua = postmake.lua
 
 -- Theres more but I wil add them when I Need them.
 local DefaultInnoSettinsList =
@@ -51,12 +52,19 @@ local Othersettings = {
 ---@param settings InnoSetConfig
 function build.make(postmake, configs, settings)
 	--- Boring checks
-	if #configs ~= 1 then
-		print("innoSetup only allows one windows config." .. #configs .. " was given")
-		os.exit(1)
+	for _, value in ipairs(configs) do
+		if value.os() ~= 'windows' then
+			print("innoSetup only allows windows configs." .. #configs .. " was given")
+			os.exit(1)
+		end
 	end
+	-- if #configs ~= 1 then
+	-- 	print("innoSetup only allows one windows config." .. #configs .. " was given")
+	-- 	os.exit(1)
+	-- end
 
 	local config = configs[1]
+	local issingleconfig = #configs == 1
 
 	if config == nil then
 		print("config is nil")
@@ -231,6 +239,48 @@ function build.make(postmake, configs, settings)
 
 	outputfile:write("OutputBaseFilename=" .. Inno_OutputBaseFilename .. "\n")
 
+	---@type string[]
+	local archlist = {}
+
+	for _, value in ipairs(configs) do
+		local archallowed = ""
+
+		if value.arch() == 'x64' then
+			archallowed = "x64compatible"
+		elseif value.arch() == 'x32' then
+			archallowed = "x86compatible"
+		elseif value.arch() == 'arm64' then
+			archallowed = "arm64"
+		else
+			archlist = {}
+			break
+		end
+
+		local isinlist = false
+		for _, architem in ipairs(archlist) do
+			if architem == archallowed then
+				isinlist = true
+				break
+			end
+
+			if not isinlist then
+				table.insert(archlist, archallowed)
+			end
+		end
+	end
+
+	if #archlist ~= 0 then
+		outputfile:write("ArchitecturesAllowed=")
+
+		for ind, arch in ipairs(archlist) do
+			outputfile:write(arch)
+
+			if ind ~= 1 then
+				outputfile:write(" ")
+			end
+		end
+		outputfile:write("\n")
+	end
 
 	local hasaddeddefault = false
 	for key, value in pairs(settings) do
@@ -315,24 +365,98 @@ function build.make(postmake, configs, settings)
 		proxyfile:close()
 	end
 
-	for inputval, output in pairs(config.files) do
-		local input = inputval.string()
 
-		local reltoinnofile = util.innoinputapppath(input)
-		local newout = util.postmakepathtoinnoapppath(output)
-
-		if not string.find(input, "%*") then
-			newout = util.getdir(newout)
+	local function test(input, Src, Dest, Check)
+		outputfile:write("Source: \"" .. Src .. "\"; DestDir: \"" .. Dest .. "\";")
+		if Check ~= nil then
+			outputfile:write(" Check: " .. Check)
 		end
 
-		outputfile:write("Source: \"" .. reltoinnofile .. "\"; DestDir: \"" .. newout .. "\";")
 		outputfile:write(" Flags: ignoreversion ")
 
 		local isrecurse = string.find(input, "%*%*")
 		if isrecurse then
-			outputfile:write("recursesubdirs")
+			outputfile:write("recursesubdirs ")
 		end
-		outputfile:write("\n")
+	end
+	if not issingleconfig then
+		---@class configfileinfo
+		---@field output string
+		---@field input string
+		---@field arch archtype[]
+
+		---@type configfileinfo[]
+		local files = {}
+
+		for _, configvalue in ipairs(configs) do
+			for inputval, output in pairs(configvalue.files) do
+				local hasvalue = nil
+				for ind, value in ipairs(files) do
+					if value.output == output and value.input == inputval.string() then
+						hasvalue = ind
+						break
+					end
+				end
+
+				if hasvalue == nil then
+					---@type configfileinfo
+					local newitem = {
+						output = output,
+						input = inputval.string(),
+						arch = { configvalue.arch() }
+					}
+
+					table.insert(files, newitem)
+				else
+					table.insert(files[hasvalue].arch, configvalue.arch())
+				end
+			end
+		end
+
+		for _, value in ipairs(files) do
+			local reltoinnofile = util.innoinputapppath(value.input)
+			local newout = util.postmakepathtoinnoapppath(value.output)
+
+			if not string.find(value.input, "%*") then
+				newout = util.getdir(newout)
+			end
+
+
+			if #value.arch ~= #configs then
+				for _, arch in ipairs(value.arch) do
+					local archfuncition = ""
+					if arch == 'x64' then
+						archfuncition = "onlyon_x64"
+					elseif arch == 'x32' then
+						archfuncition = "onlyon_x32"
+					elseif arch == 'arm64' then
+						archfuncition = "onlyon_arm64"
+					end
+
+					test(value.input, reltoinnofile, newout, archfuncition)
+				end
+			else
+				test(value.input, reltoinnofile, newout, nil)
+			end
+
+
+			outputfile:write("\n")
+		end
+	else
+		for inputval, output in pairs(config.files) do
+			local input = inputval.string()
+
+			local reltoinnofile = util.innoinputapppath(input)
+			local newout = util.postmakepathtoinnoapppath(output)
+
+			if not string.find(input, "%*") then
+				newout = util.getdir(newout)
+			end
+
+			test(input, reltoinnofile, newout, nil)
+
+			outputfile:write("\n")
+		end
 	end
 
 	outputfile:write("\n[Tasks]\n")
