@@ -181,7 +181,7 @@ end
 ---@param typevarable type
 function luamodule.asserttypearray(value, varablename, typevarable)
 	for index, item in ipairs(value) do
-		luamodule.asserttype(item, varablename .. " at index " + tostring(index), typevarable)
+		luamodule.asserttype(item, varablename .. " at index " .. tostring(index), typevarable)
 	end
 end
 
