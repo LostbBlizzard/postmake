@@ -83,6 +83,81 @@ local function linuxpathtowindows(path)
 	local r = path:gsub("~/", "%userprofile%/")
 	return r
 end
+
+local function ispathcmd(path)
+	return string.find(path, "/", nil, true) or string.find(path, ".", nil, true)
+end
+
+---@param outputfile file*
+---@param cmd plugincmd
+---@param iswindows boolean
+local function writecomds(outputfile, cmd, iswindows)
+	local stringtowrite = "execSync("
+
+	if ispathcmd(cmd.cmd()) then
+		if iswindows then
+			stringtowrite = stringtowrite .. "revolvewindowspath("
+		end
+		stringtowrite = stringtowrite .. "\""
+
+		if iswindows then
+			stringtowrite = stringtowrite .. linuxpathtowindows(resolveoutputpath(cmd.cmd()))
+			stringtowrite = stringtowrite .. "\") + \""
+		else
+			stringtowrite = stringtowrite .. resolveoutputpath(cmd.cmd())
+		end
+	else
+		stringtowrite = "\"" .. stringtowrite .. cmd.cmd()
+	end
+
+	for _, value in ipairs(cmd.pars()) do
+		stringtowrite = stringtowrite .. " "
+		if ispathcmd(value) then
+			if iswindows then
+				stringtowrite = stringtowrite .. "\" + revolvewindowspath(\""
+			end
+
+			if iswindows then
+				stringtowrite = stringtowrite .. linuxpathtowindows(resolveoutputpath(value))
+				stringtowrite = stringtowrite .. "\") + \""
+			else
+				stringtowrite = stringtowrite .. resolveoutputpath(value)
+			end
+		else
+			stringtowrite = stringtowrite .. value
+		end
+	end
+	stringtowrite = stringtowrite .. "\")"
+
+	outputfile:write(stringtowrite)
+end
+
+
+---@param cmd plugincmd
+---@return programcmd
+local function cmdtoprogramcmd(cmd)
+	---@type programcmd
+	local newcmd = {
+		cmd = cmd.cmd(),
+		pars = {},
+	}
+	for _, value in ipairs(cmd.pars()) do
+		local newitem
+		if ispathcmd(value) then
+			newitem = resolveoutputpath(value)
+		else
+			newitem = value
+		end
+		table.insert(newcmd.pars, newitem)
+	end
+
+	if ispathcmd(cmd.cmd()) then
+		newcmd.cmd = resolveoutputpath(newcmd.cmd)
+	end
+
+	return newcmd
+end
+
 ---@class versionprogramconfig
 ---@field programversion programversion?
 
@@ -220,44 +295,54 @@ local function onconfig(myindent, outputfile, config, weburl, uploaddir, uploadf
 			end)
 
 			if isfirst then
-				if singlefile then
-					local ext = "." .. compressiontype
+				if versionprogramconfig == nil then
+					if singlefile then
+						local ext = "." .. compressiontype
 
-					local startingfilepath = resolveoutputpath("/" .. singlefile) ..
-					    "/" ..
-					    dirspit .. output .. ext
+						local startingfilepath = resolveoutputpath("/" .. singlefile) ..
+						    "/" ..
+						    dirspit .. output .. ext
 
-					local outputfilepath = resolveoutputpath(output)
+						local outputfilepath = resolveoutputpath(output)
 
-					if iswindowsos then
-						outputfilepath = linuxpathtowindows(outputfilepath)
-						startingfilepath = linuxpathtowindows(startingfilepath)
+						if iswindowsos then
+							outputfilepath = linuxpathtowindows(outputfilepath)
+							startingfilepath = linuxpathtowindows(startingfilepath)
+						end
+
+						outputfile:write(myindent ..
+							"unzipdir(\"" .. startingfilepath ..
+							"\",\"" .. outputfilepath .. "\");\n\n")
+					else
+						local startingfilepath = resolveoutputpath("/" .. newout)
+						local outputfilepath = resolveoutputpath(output)
+
+						if iswindowsos then
+							outputfilepath = linuxpathtowindows(outputfilepath)
+							startingfilepath = linuxpathtowindows(startingfilepath)
+						end
+
+
+						outputfile:write(myindent ..
+							"downloadfile(\"" ..
+							weburl .. "/" .. newout .. "\",\"" .. outputfilepath .. "\");\n")
+
+						outputfile:write(myindent ..
+							"unzipdir(\"" .. startingfilepath ..
+							"\",\"" .. outputfilepath .. "\");\n")
+
+
+						outputfile:write(myindent ..
+							"removedir(\"" .. outputfilepath .. "\");\n\n")
 					end
-
-					outputfile:write(myindent ..
-						"unzipdir(\"" .. startingfilepath ..
-						"\",\"" .. outputfilepath .. "\");\n\n")
 				else
-					local startingfilepath = resolveoutputpath("/" .. newout)
-					local outputfilepath = resolveoutputpath(output)
+					---@type programfile
+					local newfile = {
+						fileinput = newout,
+						fileoutput = resolveoutputpath(output),
+					}
 
-					if iswindowsos then
-						outputfilepath = linuxpathtowindows(outputfilepath)
-						startingfilepath = linuxpathtowindows(startingfilepath)
-					end
-
-
-					outputfile:write(myindent ..
-						"downloadfile(\"" ..
-						weburl .. "/" .. newout .. "\",\"" .. outputfilepath .. "\");\n")
-
-					outputfile:write(myindent ..
-						"unzipdir(\"" .. startingfilepath ..
-						"\",\"" .. outputfilepath .. "\");\n")
-
-
-					outputfile:write(myindent ..
-						"removedir(\"" .. outputfilepath .. "\");\n\n")
+					table.insert(versionprogramconfig.programversion.files, newfile)
 				end
 			end
 		end
@@ -273,6 +358,23 @@ local function onconfig(myindent, outputfile, config, weburl, uploaddir, uploadf
 				pathtoadd = linuxpathtowindows(pathtoadd)
 			end
 			outputfile:write(myindent .. "addpath(\"" .. pathtoadd .. "\");\n")
+		end
+	end
+
+
+	if versionprogramconfig ~= nil then
+		for _, cmd in ipairs(config.installcmds) do
+			table.insert(versionprogramconfig.programversion.installcmd, cmdtoprogramcmd(cmd))
+		end
+
+		for _, cmd in ipairs(config.uninstallcmds) do
+			table.insert(versionprogramconfig.programversion.uninstallcmd, cmdtoprogramcmd(cmd))
+		end
+	else
+		for _, cmd in ipairs(config.installcmds) do
+			outputfile:write(myindent)
+			writecomds(outputfile, cmd, iswindowsos)
+			outputfile:write("\n")
 		end
 	end
 
@@ -346,11 +448,17 @@ end
 ---@field fileinput string
 ---@field fileoutput string
 
+---@class programcmd
+---@field cmd string
+---@field pars string[]
+
 ---@class programversion
 ---@field os ostype
 ---@field arch archtype
 ---@field files programfile[]
 ---@field paths string[]
+---@field installcmd programcmd[]
+---@field uninstallcmd programcmd[]
 
 ---@class versiondata
 ---@field version string
@@ -588,6 +696,12 @@ function build.make(postmake, configs, settings)
 		indexfile:write("}\n")
 	end
 
+	local haswindowsconfig = true
+	if haswindowsconfig then
+		indexfile:write("\nfunction revolvewindowspath(path) {\n")
+		indexfile:write("}\n")
+	end
+
 	local uploadfilecontext = {}
 
 	for _, value in ipairs(allflags) do
@@ -640,7 +754,9 @@ function build.make(postmake, configs, settings)
 				os = config.os(),
 				arch = config.arch(),
 				files = {},
-				paths = {}
+				paths = {},
+				installcmd = {},
+				uninstallcmd = {}
 			}
 
 			for file, path in pairs(config.files) do
