@@ -13,7 +13,8 @@ local AllowedSettingsFields = {
 	"uploaddir",
 	"singlefile",
 	"version",
-	"export"
+	"export",
+	"dependencies"
 }
 
 local programinstalldir = ""
@@ -75,6 +76,13 @@ local function archive(compressiontype, inputfiles, output)
 	end
 end
 
+
+---@param path string
+---@return string
+local function linuxpathtowindows(path)
+	local r = path:gsub("~/", "%userprofile%/")
+	return r
+end
 ---@class versionprogramconfig
 ---@field programversion programversion?
 
@@ -97,6 +105,16 @@ local function onconfig(myindent, outputfile, config, weburl, uploaddir, uploadf
 	if singlefile then
 		singledir = uploaddir .. singlefile
 	end
+
+	local iswindowsos = false
+	if config.os ~= nil then
+		iswindowsos = config.os() == "windows"
+	else
+		if string.find(dirspit, "windows") then
+			iswindowsos = true
+		end
+	end
+	local isunix = not iswindowsos
 
 	for inputtable, output in pairs(config.files) do
 		local input = inputtable.string()
@@ -125,9 +143,36 @@ local function onconfig(myindent, outputfile, config, weburl, uploaddir, uploadf
 
 				table.insert(versionprogramconfig.programversion.files, newfile)
 			else
-				outputfile:write(myindent ..
-					"downloadfile(\"" ..
-					weburl .. "/" .. newfilename .. "\",\"" .. newout .. "\");\n\n")
+				if singlefile then
+					local startingfilepath = resolveoutputpath("/" .. singlefile) ..
+					    "/" ..
+					    dirspit .. output
+
+					local outputfilepath = newout
+					if iswindowsos then
+						outputfilepath = linuxpathtowindows(outputfilepath)
+						startingfilepath = linuxpathtowindows(startingfilepath)
+					end
+
+					outputfile:write(myindent ..
+						"movefile(\"" .. startingfilepath ..
+						"\",\"" .. outputfilepath .. "\");\n\n")
+				else
+					local outputfilepath = newout
+
+					if iswindowsos then
+						outputfilepath = linuxpathtowindows(outputfilepath)
+					end
+
+					outputfile:write(myindent ..
+						"downloadfile(\"" ..
+						weburl .. "/" .. newfilename .. "\",\"" .. outputfilepath .. "\");\n\n")
+				end
+
+				if isunix and inputtable.isexecutable() then
+					outputfile:write(myindent ..
+						"execSync(\"chmod +x\", \"" .. newout .. "\");\n")
+				end
 			end
 		else
 			local basepath = postmake.path.absolute(postmake.match.getbasepath(input))
@@ -173,6 +218,48 @@ local function onconfig(myindent, outputfile, config, weburl, uploaddir, uploadf
 
 				myarchive.files[path] = zippath
 			end)
+
+			if isfirst then
+				if singlefile then
+					local ext = "." .. compressiontype
+
+					local startingfilepath = resolveoutputpath("/" .. singlefile) ..
+					    "/" ..
+					    dirspit .. output .. ext
+
+					local outputfilepath = resolveoutputpath(output)
+
+					if iswindowsos then
+						outputfilepath = linuxpathtowindows(outputfilepath)
+						startingfilepath = linuxpathtowindows(startingfilepath)
+					end
+
+					outputfile:write(myindent ..
+						"unzipdir(\"" .. startingfilepath ..
+						"\",\"" .. outputfilepath .. "\");\n\n")
+				else
+					local startingfilepath = resolveoutputpath("/" .. newout)
+					local outputfilepath = resolveoutputpath(output)
+
+					if iswindowsos then
+						outputfilepath = linuxpathtowindows(outputfilepath)
+						startingfilepath = linuxpathtowindows(startingfilepath)
+					end
+
+
+					outputfile:write(myindent ..
+						"downloadfile(\"" ..
+						weburl .. "/" .. newout .. "\",\"" .. outputfilepath .. "\");\n")
+
+					outputfile:write(myindent ..
+						"unzipdir(\"" .. startingfilepath ..
+						"\",\"" .. outputfilepath .. "\");\n")
+
+
+					outputfile:write(myindent ..
+						"removedir(\"" .. outputfilepath .. "\");\n\n")
+				end
+			end
 		end
 	end
 
@@ -180,7 +267,12 @@ local function onconfig(myindent, outputfile, config, weburl, uploaddir, uploadf
 		if versionprogramconfig ~= nil then
 			table.insert(versionprogramconfig.programversion.paths, resolveoutputpath(output))
 		else
-			outputfile:write(myindent .. "addpath(\"" .. resolveoutputpath(output) .. "\");\n")
+			local pathtoadd = resolveoutputpath(output)
+
+			if iswindowsos then
+				pathtoadd = linuxpathtowindows(pathtoadd)
+			end
+			outputfile:write(myindent .. "addpath(\"" .. pathtoadd .. "\");\n")
 		end
 	end
 
@@ -472,6 +564,22 @@ function build.make(postmake, configs, settings)
 
 		indexfile:write(indent .. "child = execSync(command, null);\n")
 		indexfile:write("}\n")
+
+
+		indexfile:write("\nfunction unzipdir(inputpath,outputpath) {\n")
+		indexfile:write("}\n")
+
+		indexfile:write("\nfunction removedir(path) {\n")
+		indexfile:write("}\n")
+	end
+	if singlefile and not version then
+		indexfile:write("\nfunction downloadmainfile() {\n")
+
+		indexfile:write("}\n")
+
+		indexfile:write("\nfunction removemainfile() {\n")
+
+		indexfile:write("}\n")
 	end
 
 	if haspath then
@@ -484,10 +592,12 @@ function build.make(postmake, configs, settings)
 
 	for _, value in ipairs(allflags) do
 		local isexported = false
-		for _, exportitem in ipairs(settings.export) do
-			if exportitem.flag.name() == value.name then
-				isexported = true
-				break
+		if settings.export ~= nil then
+			for _, exportitem in ipairs(settings.export) do
+				if exportitem.flag.name() == value.name then
+					isexported = true
+					break
+				end
 			end
 		end
 
@@ -542,6 +652,33 @@ function build.make(postmake, configs, settings)
 			table.insert(newprogramversion.programs, newprogram)
 		end
 
+		if settings.dependencies ~= nil
+		    and settings.dependencies.linux ~= nil
+		    and settings.dependencies.linux.packages ~= nil
+		    and settings.dependencies.linux.packages.apt ~= nil
+		    and config.os() == 'linux'
+		then
+			local apt = settings.dependencies.linux.packages.apt
+
+			local hasapt = false
+			for value, _ in pairs(apt) do
+				hasapt = true
+				break
+			end
+
+			if hasapt then
+				local cmd = "sudo apt install "
+				for value, _ in pairs(apt) do
+					cmd = cmd .. value
+				end
+				cmd = cmd .. " -y"
+
+				indexfile:write("    execSync(\"" .. cmd .. "\")\n");
+			end
+		end
+		if singlefile and not version then
+			indexfile:write("    downloadmainfile();\n")
+		end
 		local dirspit = config.os() .. "-" .. config.arch()
 		onconfig(indent, indexfile, config, weburl, uploaddir, uploadfilecontext, compressiontype, singlefile,
 			dirspit,
@@ -573,17 +710,20 @@ function build.make(postmake, configs, settings)
 				indexfile:write(") {\n")
 			end
 
+
 			local dirspit = config.os() .. "-" .. config.arch()
 			onconfig(indent2, indexfile, output, weburl, uploaddir, uploadfilecontext, compressiontype,
 				singlefile, dirspit,
 				versionprogramconfig)
-
 
 			if not version then
 				indexfile:write(indent .. "}\n\n")
 			end
 		end
 
+		if singlefile and not version then
+			indexfile:write("    removemainfile();\n")
+		end
 		if not version then
 			indexfile:write("}\n")
 		end
@@ -614,7 +754,10 @@ function build.make(postmake, configs, settings)
 	actionymlfile:write("  using: 'node20'\n")
 	actionymlfile:write("  main: './dist/index.js'\n\n")
 
-	local hasinputs = #settings.export ~= 0
+	local hasinputs = false
+	if settings.export ~= nil then
+		hasinputs = #settings.export ~= 0
+	end
 
 	if hasinputs then
 		actionymlfile:write("inputs: \n")

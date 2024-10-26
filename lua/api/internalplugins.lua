@@ -41,12 +41,12 @@ local ShellScriptPlugin = {};
 function ShellScriptPlugin.GetUploadfilePath(input, uploadfilecontext, onadded) end
 
 ---@class LinuxShellScriptConfigDependenciesPackages
----@field apt { [string]: string }
----@field pacman { [string]: string }
----@field yum { [string]: string }
+---@field apt string[]
+---@field pacman string[]
+---@field yum string[]
 
 ---@class LinuxShellScriptConfigDependencies
----@field packages? LinuxShellScriptConfigDependencies
+---@field packages? LinuxShellScriptConfigDependenciesPackages
 
 ---@class MacOsShellScriptConfigDependencies
 
