@@ -2,8 +2,14 @@ package main
 
 import (
 	"embed"
+	"encoding/json"
+	"errors"
+	"fmt"
 	"log"
 	"os"
+	"os/exec"
+	"path"
+	"path/filepath"
 	"strings"
 
 	"postmake/luamodule"
@@ -17,6 +23,7 @@ var InternalFiles embed.FS
 
 type ScriptRunerInput struct {
 	ScriptText    string
+	ScriptPath    string
 	Target        string
 	IsTestingMode bool
 }
@@ -515,6 +522,17 @@ func makeposttableconfig(l *lua.LState, table lua.LValue, configdata Config) {
 	l.SetField(table, "uninstallcmds", CmdArrayToLua(l, configdata.uninstallcmd))
 
 }
+
+type PluginRef struct {
+	Url  string
+	Hash string
+}
+type LockFileFormat struct {
+	Version  int         `json:"Version"`
+	Direct   []PluginRef `json:"Direct"`
+	Indirect []PluginRef `json:"Indirect"`
+}
+
 func RunScript(input ScriptRunerInput) {
 	L := lua.NewState()
 	defer L.Close()
@@ -655,9 +673,10 @@ func RunScript(input ScriptRunerInput) {
 					l.RaiseError("unable to read plugin %s init.lua [%s]", pluginpath, err.Error())
 				}
 
+				old := currentplugin
 				currentplugin = "lua/" + pluginname
 				err = l.DoString(string(data))
-				currentplugin = ""
+				currentplugin = old
 
 				if err != nil {
 					l.RaiseError("plugin %s failed to load \n\n\n %s", pluginpath, err.Error())
@@ -668,6 +687,187 @@ func RunScript(input ScriptRunerInput) {
 				prebuild.loadedplugins[pluginpath] = Loadedplugin{table: ret}
 				l.Push(ret)
 				return 1
+			} else if strings.HasPrefix(pluginpath, "https://") {
+
+				err := exec.Command("git", "-v").Run()
+				isgitinstalled := err == nil
+
+				if !isgitinstalled {
+					l.RaiseError("git is not installed.Unable to git clone")
+					return 0
+				}
+
+				lockfilepath := filepath.Join(filepath.Dir(input.ScriptPath), "postmake.lock.json")
+
+				lockfileexist := true
+				if _, err := os.Stat(lockfilepath); errors.Is(err, os.ErrNotExist) {
+					lockfileexist = false
+				}
+
+				isdirect := currentplugin == ""
+
+				lockfile := LockFileFormat{
+					Version:  1,
+					Direct:   make([]PluginRef, 0),
+					Indirect: make([]PluginRef, 0),
+				}
+
+				if lockfileexist {
+					data, err := os.ReadFile(CLI.Build.Input)
+					if err != nil {
+						fmt.Print(err)
+						os.Exit(1)
+					}
+					err = json.Unmarshal(data, &lockfile)
+
+					if err != nil {
+						l.RaiseError("unable to parse %s. error: %s", lockfilepath, err.Error())
+						return 0
+					}
+				}
+
+				home, err := os.UserHomeDir()
+				if err != nil {
+					l.RaiseError("Unable to Get User HomeDir. error: %s", err.Error())
+					return 0
+				}
+
+				fullpluginname := strings.ReplaceAll(pluginpath, "/", "_")[len("https://"):]
+				externalpluginpath := path.Join(home, ".postmake", "externalplugins")
+
+				err = os.MkdirAll(externalpluginpath, os.ModePerm)
+				if err != nil {
+					l.RaiseError("Unable to make external pluginDir. error: %s", err.Error())
+					return 0
+				}
+
+				plugindir := path.Join(externalpluginpath, fullpluginname)
+
+				baredir := path.Join(plugindir, "bare")
+				checkeoutdir := path.Join(plugindir, "checkedout")
+
+				err = os.MkdirAll(checkeoutdir, os.ModePerm)
+
+				plugindirexist := true
+				if _, err := os.Stat(baredir); errors.Is(err, os.ErrNotExist) {
+					plugindirexist = false
+				}
+
+				if !plugindirexist {
+					println("downloading " + pluginpath)
+					stdout, err := exec.Command("git", "clone", "--bare", pluginpath, baredir).CombinedOutput()
+					println(stdout)
+					if err != nil {
+						l.RaiseError("git clone failed. error: %s", err.Error())
+						return 0
+					}
+				}
+
+				hasinlock := false
+				hashtouse := ""
+
+				var listtocheck *[]PluginRef = nil
+
+				if isdirect {
+					listtocheck = &lockfile.Direct
+				} else {
+					listtocheck = &lockfile.Indirect
+				}
+
+				for _, item := range *listtocheck {
+					if item.Url == pluginpath {
+						hasinlock = true
+						hashtouse = item.Hash
+					}
+				}
+
+				if !hasinlock {
+					if true {
+						println("git pulling " + pluginpath)
+						cmd := exec.Command("git", "pull")
+						cmd.Dir = baredir
+
+						err = cmd.Start()
+						if err != nil {
+							l.RaiseError("git pull. error: %s", err.Error())
+							return 0
+						}
+					}
+
+					cmd := exec.Command("git", "rev-parse", "HEAD")
+					cmd.Dir = baredir
+					githash, err := cmd.Output()
+					if err != nil {
+						l.RaiseError("git rev-parse HEAD failed. error: %s", err.Error())
+						return 0
+					}
+					hashtouse = string(githash[:len(githash)-1]) // remove the \n on the end
+
+					var newpluginref = PluginRef{
+						Url:  pluginpath,
+						Hash: string(hashtouse),
+					}
+
+					(*listtocheck) = append(*listtocheck, newpluginref)
+				}
+
+				newestdir := path.Join(checkeoutdir, string(hashtouse))
+
+				haschecked := true
+				if _, err := os.Stat(newestdir); errors.Is(err, os.ErrNotExist) {
+					haschecked = false
+				}
+
+				if !haschecked {
+					println("git checkout " + hashtouse)
+					_, err = exec.Command("git", "clone", baredir, newestdir).Output()
+					if err != nil {
+						l.RaiseError("git clone failed. error: %s", err.Error())
+						return 0
+					}
+
+					gitfiles := path.Join(newestdir, ".git")
+
+					err = os.RemoveAll(gitfiles) // this dir is unneeded.
+					if err != nil {
+						l.RaiseError("removeing .git failed. error: %s", err.Error())
+						return 0
+					}
+				}
+
+				initfile := path.Join(newestdir, "init.lua")
+				data, err := os.ReadFile(initfile)
+				if err != nil {
+					l.RaiseError("unable to read plugin %s init.lua [%s]", pluginpath, err.Error())
+				}
+
+				old := currentplugin
+				currentplugin = initfile
+				err = l.DoString(string(data))
+				currentplugin = old
+
+				if err != nil {
+					l.RaiseError("plugin %s failed to load \n\n\n %s", pluginpath, err.Error())
+				}
+				ret := l.Get(-1)
+				l.Pop(1)
+
+				prebuild.loadedplugins[pluginpath] = Loadedplugin{table: ret}
+				l.Push(ret)
+
+				jsondata, err := json.MarshalIndent(lockfile, "", "    ")
+				if err != nil {
+					l.RaiseError("json Marshal failed. error: %s", err.Error())
+					return 0
+				}
+				err = os.WriteFile(lockfilepath, jsondata, 0644)
+				if err != nil {
+					l.RaiseError("writeing to lockfile failed. error: %s", err.Error())
+					return 0
+				}
+
+				return 1
+
 			} else {
 				l.RaiseError("unable to find plugin %s", pluginpath)
 			}

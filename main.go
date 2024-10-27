@@ -69,7 +69,7 @@ func main() {
 			os.Exit(1)
 		}
 
-		RunScript(ScriptRunerInput{ScriptText: string(data), Target: CLI.Build.Target})
+		RunScript(ScriptRunerInput{ScriptText: string(data), Target: CLI.Build.Target, ScriptPath: CLI.Build.Input})
 		if err != nil {
 			fmt.Print(err)
 			os.Exit(1)
