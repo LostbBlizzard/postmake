@@ -916,6 +916,17 @@ func RunScript(input ScriptRunerInput) {
 				return 1
 
 			} else {
+
+				if strings.Contains(pluginpath, "~/") {
+					home, err := os.UserHomeDir()
+					if err != nil {
+						l.RaiseError("Unable to Get User HomeDir. error: %s", err.Error())
+						return 0
+					}
+
+					pluginpath = strings.ReplaceAll(pluginpath, "~/", home+"/")
+				}
+
 				initfile := path.Join(pluginpath, "init.lua")
 				data, err := os.ReadFile(initfile)
 				if err != nil {
