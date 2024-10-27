@@ -121,6 +121,15 @@ func MakeOsModule(l *lua.LState) *lua.LTable {
 		l.Push(lua.LBool(value))
 		return 1
 	}))
+	l.SetField(table, "ln", l.NewFunction(func(l *lua.LState) int {
+		input := l.ToString(1)
+		output := l.ToString(2)
+
+		err := os.Symlink(input, output)
+		utils.CheckErr(err)
+
+		return 0
+	}))
 
 	unametable := l.NewTable()
 	{

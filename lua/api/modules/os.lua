@@ -53,3 +53,7 @@ function osmodule.IsFile(path, callback) end
 ---@param path string
 ---@return boolean
 function osmodule.IsDir(path) end
+
+---@param input string
+---@param output string
+function osmodule.ln(input, output) end
