@@ -916,7 +916,27 @@ func RunScript(input ScriptRunerInput) {
 				return 1
 
 			} else {
-				l.RaiseError("unable to find plugin %s", pluginpath)
+				initfile := path.Join(pluginpath, "init.lua")
+				data, err := os.ReadFile(initfile)
+				if err != nil {
+					l.RaiseError("unable to read plugin %s init.lua [%s]", pluginpath, err.Error())
+				}
+
+				old := currentplugin
+				currentplugin = initfile
+				err = l.DoString(string(data))
+				currentplugin = old
+
+				if err != nil {
+					l.RaiseError("plugin %s failed to load \n\n\n %s", pluginpath, err.Error())
+				}
+				ret := l.Get(-1)
+				l.Pop(1)
+
+				prebuild.loadedplugins[pluginpath] = Loadedplugin{table: ret}
+				l.Push(ret)
+
+				return 1
 			}
 		}
 		return 0
