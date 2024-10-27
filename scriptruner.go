@@ -532,6 +532,47 @@ type LockFileFormat struct {
 	Direct   []PluginRef `json:"Direct"`
 	Indirect []PluginRef `json:"Indirect"`
 }
+type MasterPluginsFileFormat struct {
+	Version int `json:"Version"`
+}
+
+func DoMigrationIfNeeded(externalpluginspath string) error {
+	masterfilepath := path.Join(externalpluginspath, "masterplugin.json")
+
+	masterfilexist := true
+	if _, err := os.Stat(masterfilepath); errors.Is(err, os.ErrNotExist) {
+		masterfilexist = false
+	}
+
+	if masterfilexist {
+		data, err := os.ReadFile(masterfilepath)
+		if err != nil {
+			return err
+		}
+
+		var masterplugin MasterPluginsFileFormat
+		err = json.Unmarshal(data, &masterplugin)
+		if err != nil {
+			return err
+		}
+
+		//uncomment if needed
+		//if (masterplugin.Version == 1) { }
+	} else {
+		newmasterplugin := MasterPluginsFileFormat{Version: 1}
+
+		jsondata, err := json.MarshalIndent(newmasterplugin, "", "    ")
+		if err != nil {
+			return err
+		}
+
+		err = os.WriteFile(masterfilepath, jsondata, 0644)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
 
 func RunScript(input ScriptRunerInput) {
 	L := lua.NewState()
@@ -713,7 +754,7 @@ func RunScript(input ScriptRunerInput) {
 				}
 
 				if lockfileexist {
-					data, err := os.ReadFile(CLI.Build.Input)
+					data, err := os.ReadFile(lockfilepath)
 					if err != nil {
 						fmt.Print(err)
 						os.Exit(1)
@@ -734,6 +775,12 @@ func RunScript(input ScriptRunerInput) {
 
 				fullpluginname := strings.ReplaceAll(pluginpath, "/", "_")[len("https://"):]
 				externalpluginpath := path.Join(home, ".postmake", "externalplugins")
+
+				err = DoMigrationIfNeeded(externalpluginpath)
+				if err != nil {
+					l.RaiseError("Checking for Migration failed. error: %s", err.Error())
+					return 0
+				}
 
 				err = os.MkdirAll(externalpluginpath, os.ModePerm)
 				if err != nil {
