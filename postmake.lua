@@ -63,5 +63,8 @@ postmake.make(innosetup, { win },
 postmake.make(githubaction, { win, gnu, mac },
 	---@type GitHubActionConfig
 	{
-		weburl = installwebsite
+		weburl = installwebsite,
+		uploaddir = "./output/githubactionupload/",
+		singlefile = "githubactioninstalldata",
+		version = {}
 	});
