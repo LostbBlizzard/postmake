@@ -48,7 +48,7 @@ function osmodule.tree(path, callback) end
 
 ---@param path string
 ---@return boolean
-function osmodule.IsFile(path, callback) end
+function osmodule.IsFile(path) end
 
 ---@param path string
 ---@return boolean

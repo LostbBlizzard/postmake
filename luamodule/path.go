@@ -1,6 +1,7 @@
 package luamodule
 
 import (
+	"os"
 	"path/filepath"
 	"postmake/utils"
 	"strings"
@@ -8,6 +9,18 @@ import (
 	lua "github.com/yuin/gopher-lua"
 )
 
+func Revolveluapath(path string) (string, error) {
+	r := path
+	if strings.Contains(r, "~/") {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return "", err
+		}
+
+		r = strings.ReplaceAll(r, "~/", home+"/")
+	}
+	return r, nil
+}
 func MakePathModule(l *lua.LState) *lua.LTable {
 	table := l.NewTable()
 
@@ -32,7 +45,10 @@ func MakePathModule(l *lua.LState) *lua.LTable {
 	l.SetField(table, "absolute", l.NewFunction(func(l *lua.LState) int {
 		path := l.ToString(1)
 
-		r, err := filepath.Abs(path)
+		updatedpath, err := Revolveluapath(path)
+		utils.CheckErr(err)
+
+		r, err := filepath.Abs(updatedpath)
 		utils.CheckErr(err)
 		l.Push(lua.LString(r))
 

@@ -917,14 +917,9 @@ func RunScript(input ScriptRunerInput) {
 
 			} else {
 
-				if strings.Contains(pluginpath, "~/") {
-					home, err := os.UserHomeDir()
-					if err != nil {
-						l.RaiseError("Unable to Get User HomeDir. error: %s", err.Error())
-						return 0
-					}
-
-					pluginpath = strings.ReplaceAll(pluginpath, "~/", home+"/")
+				pluginpath, err := luamodule.Revolveluapath(pluginpath)
+				if err != nil {
+					l.RaiseError("Unable to Revolve path. error: %s", err.Error())
 				}
 
 				initfile := path.Join(pluginpath, "init.lua")
