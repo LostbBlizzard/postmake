@@ -123,12 +123,7 @@ local function GetUploadfilePath(input, uploadfilecontext, onadded)
 	local newfilename = ""
 
 	if not has_key_map(uploadfilecontext, input) then
-		newfilename = input
-		if has_value_map(uploadfilecontext, newfilename) then
-			newfilename = input .. "1"
-		end
-
-		newfilename = postmake.path.getfilename(newfilename)
+		newfilename = postmake.path.getfilename(input)
 		uploadfilecontext[input] = newfilename
 
 		if onadded ~= nil then
@@ -239,9 +234,14 @@ local function onconfig(outputfile, config, weburl, uploaddir, uninstallfile, te
 
 			local newout = GetUploadfilePath(basezippath, uploadfilecontext, nil)
 
+			local pathforarchive = newout
+			if singlefile ~= nil then
+				pathforarchive = output .. getzipext(compressiontype)
+			end
+
 			local myarchive
 			for _, value in ipairs(archivestomake) do
-				if value.archivepath == newout then
+				if value.archivepath == pathforarchive then
 					myarchive = value
 					break
 				end
