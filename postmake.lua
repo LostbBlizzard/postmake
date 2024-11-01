@@ -12,7 +12,7 @@ if appversionenv ~= nil then
 end
 
 postmake.appinstalldir = "~/.postmake"
-
+postmake.applicensefile = "LICENSE.txt"
 postmake.output = "./output/install"
 -- Short Hands
 local all = postmake.allconfig
@@ -31,6 +31,8 @@ gnu.addxfile("output/postmake", postmake.installdir() .. "bin/" .. postmake.appn
 mac.addxfile("output/postmake_macos", postmake.installdir() .. "bin/" .. postmake.appname)
 
 all.addfile("lua/api/**.lua", postmake.installdir() .. "lua/definitions")
+all.addfile(postmake.applicensefile, postmake.installdir() .. "LICENSE.txt")
+
 all.If(addpathflag).addpath(postmake.installdir())
 
 local installwebsite = "https://github.com/LostbBlizzard/postmake/releases/tag/Release-" .. postmake.appversion
