@@ -12,7 +12,7 @@ import (
 )
 
 func isbasicmatchrune(r rune) bool {
-	return unicode.IsLetter(r) || unicode.IsDigit(r) || r == '/' || r == '.' || r == '_'
+	return unicode.IsLetter(r) || unicode.IsDigit(r) || r == '/' || r == '.' || r == '_' || r == '-'
 }
 func IsBasicMatch(s string) bool {
 	for _, r := range s {
