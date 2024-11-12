@@ -1,8 +1,11 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -48,11 +51,53 @@ func main() {
 
 	switch ctx.Command() {
 	case "init":
+		postmakeluapath := CLI.Init.Output
+
+		postmakeinpath := true
+		if _, err := os.Stat(postmakeluapath); errors.Is(err, os.ErrNotExist) {
+			postmakeinpath = false
+		}
+
+		if postmakeinpath {
+
+			newpostmakeluapath := postmakeluapath + ".bak"
+
+			if _, err := os.Stat(newpostmakeluapath); errors.Is(err, os.ErrNotExist) {
+			} else {
+				num := 0
+				for i := range 100 {
+					newpath := newpostmakeluapath + strconv.Itoa(i)
+					if _, err := os.Stat(newpath); errors.Is(err, os.ErrNotExist) {
+						num = i
+						break
+					}
+				}
+
+				newpostmakeluapath = newpostmakeluapath + strconv.Itoa(num)
+			}
+
+			os.Rename(postmakeluapath, newpostmakeluapath)
+			fmt.Println("Moved original postmake.lua to " + newpostmakeluapath)
+		}
+
 		data, err := InternalFiles.ReadFile("lua/default.lua")
 		utils.CheckErr(err)
 		newstr := strings.ReplaceAll(string(data), "###{INNOAPPID}###", GenerateNewInnoID())
 		err = os.WriteFile(CLI.Init.Output, []byte(newstr), 0644)
 		utils.CheckErr(err)
+
+		luarcpath := filepath.Join(filepath.Dir(CLI.Init.Output), ".luarc.json")
+		if _, err := os.Stat(luarcpath); errors.Is(err, os.ErrNotExist) {
+			data, err := InternalFiles.ReadFile("lua/default.luarc.json")
+			utils.CheckErr(err)
+			err = os.WriteFile(luarcpath, []byte(data), 0644)
+			utils.CheckErr(err)
+		} else {
+			fmt.Println("Skiped adding .luarc.json because one was already there. if want to have lua annotations")
+			fmt.Println("Add the line '~/.postmake/lua/definitions' to the workspace.library array")
+		}
+
+		err = os.WriteFile(CLI.Init.Output, []byte(newstr), 0644)
 	case "generate-inno-id":
 		fmt.Println(GenerateNewInnoID())
 	case "uninstall":

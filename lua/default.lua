@@ -11,7 +11,7 @@ local InnoAppID = "###{INNOAPPID}###"
 -- App Settings
 postmake.appname = "app"
 postmake.appversion = "0.0.1"
-postmake.output = "./output/install"
+postmake.output = "./install"
 
 postmake.appinstalldir = "~/.app"
 
@@ -22,6 +22,11 @@ local all = postmake.allconfig
 --local linux = postmake.foros("linux")
 --local macos = postmake.foros("macos")
 
+
+
+local unixmainprogram = postmake.installdir() .. "./" .. postmake.appname
+local winsmainprogram = unixmainprogram .. ".exe"
+
 --- Configs
 local win = postmake.newconfig("windows", "x64")
 local gnu = postmake.newconfig("linux", "x64")
@@ -29,17 +34,24 @@ local mac = postmake.newconfig("macos", "x64")
 
 --- Add Your files
 
-local winsmainprogram = postmake.installdir() .. "./" .. postmake.appname .. ".exe"
+local installwebsite = "website.com"
 
 win.addfile("main.exe", winsmainprogram)
-gnu.addfile("main", postmake.installdir() .. "./" .. postmake.appname)
-mac.addfile("main_macos", postmake.installdir() .. "./" .. postmake.appname)
-
+gnu.addfile("main", unixmainprogram)
+mac.addfile("main_macos", unixmainprogram)
 all.addfile("License.md", postmake.installdir() .. "./License.md")
 
-postmake.make(shellscript, { gnu, mac }, {});
+postmake.make(shellscript, { gnu, mac },
+	---@type ShellScriptConfig
+	{
+		weburl = installwebsite,
+		uploaddir = "./output/upload/",
+	}
+);
 postmake.make(innosetup, { win },
 	---@type InnoSetConfig
 	{
-		AppId = InnoAppID, LaunchProgram = winsmainprogram, LicenseFile = "License.md"
+		AppId = InnoAppID,
+		LaunchProgram = winsmainprogram,
+		LicenseFile = "License.md"
 	});
