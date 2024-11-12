@@ -24,6 +24,7 @@ local VersionSetting = {}
 ---@field compressiontype? shellscriptcompressiontype
 ---@field export GitHubActionExportVarable[]
 ---@field dependencies? GitHubActionConfigDependencies
+---@field testmode? boolean
 local GitHubActionConfig = {}
 
 ---@class ShellScriptConfigProxy

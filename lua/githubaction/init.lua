@@ -14,7 +14,8 @@ local AllowedSettingsFields = {
 	"singlefile",
 	"version",
 	"export",
-	"dependencies"
+	"dependencies",
+	"testmode"
 }
 
 local programinstalldir = ""
@@ -407,7 +408,7 @@ local function getversionindexjsfile()
 	r = r .. "var programversion = databaseinfo.versions[i]\n"
 
 	r = r ..
-	    "if (programversion.version == versiontodownload || (i == databaseinfo.versions.length - 1 && versiontodownload == \" latest\")) {\n\n"
+	    "if (programversion.version == versiontodownload || (i == databaseinfo.versions.length - 1 && versiontodownload == \"latest\")) {\n\n"
 
 	r = r .. "var downloadurl = databaseinfo.downloadurl\n"
 	r = r .. "for (var i = 0; i < programversion.programs.length; i++) {\n"
@@ -526,6 +527,12 @@ function build.make(postmake, configs, settings)
 	if compressiontype == nil then
 		compressiontype = "tar.gz"
 	end
+
+	local istestmode = false
+	if settings.testmode ~= nil then
+		istestmode = settings.testmode
+	end
+
 
 	postmake.os.mkdirall(outputpathdir)
 	postmake.os.mkdirall(srcdir)
@@ -648,8 +655,12 @@ function build.make(postmake, configs, settings)
 		end
 	end
 
-	indexfile:write("const core = require('@actions/core');\n")
-	indexfile:write("const github = require('@actions/github');\n")
+	if not istestmode then
+		indexfile:write("const core = require('@actions/core');\n")
+		indexfile:write("const github = require('@actions/github');\n")
+	end
+	indexfile:write("const fs = require('fs');\n")
+
 
 	if hasfiles then
 		indexfile:write("const { execSync } = require(\"child_process\");\n")
@@ -692,7 +703,11 @@ function build.make(postmake, configs, settings)
 
 	if haspath then
 		indexfile:write("\nfunction addpath(path) {\n")
-		indexfile:write(indent .. "core.addPath(path);\n")
+		if istestmode then
+			indexfile:write(indent .. "console.log(\"addpath function was called with '\" + path + \"'\");\n")
+		else
+			indexfile:write(indent .. "core.addPath(path);\n")
+		end
 		indexfile:write("}\n")
 	end
 
@@ -725,7 +740,12 @@ function build.make(postmake, configs, settings)
 		end
 	end
 	if version then
-		indexfile:write("\nvar versiontodownload = github.getInput('version');\n")
+		if istestmode then
+			indexfile:write("\nvar versiontodownload = \"\";\n")
+		else
+			indexfile:write("\nvar versiontodownload = github.getInput('version');\n")
+		end
+
 		indexfile:write("if (versiontodownload == \"\") {\n")
 		indexfile:write("     versiontodownload = \"latest\";\n")
 		indexfile:write("}\n")

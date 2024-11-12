@@ -1,5 +1,6 @@
 local innosetup = postmake.loadplugin("internal/innosetup")
 local shellscript = postmake.loadplugin("internal/shellscript")
+local githubaction = postmake.loadplugin("internal/githubaction")
 
 ---@type testpostmakemodule
 local postmaketest = dofile("../testutils/init.lua")
@@ -38,3 +39,8 @@ postmake.lua.assert(postmaketest.make(shellscript, { gnu, mac },
 		uploaddir = "./uploadir/"
 	}), "shellscript setup failed");
 postmake.lua.assert(postmaketest.make(innosetup, { win }, { AppId = InnoAppID, }), "inno setup failed");
+
+postmake.lua.assert(postmaketest.make(githubaction, { gnu, mac, win }, {
+	weburl = "website.com",
+	uploaddir = "./output/githubactionupload/",
+}), "githubaction setup failed");
