@@ -57,3 +57,35 @@ function osmodule.IsDir(path) end
 ---@param input string
 ---@param output string
 function osmodule.ln(input, output) end
+
+---@class osprocess
+local osprocess = {}
+
+---@param path string
+function osprocess.setworkingdir(path) end
+
+---@param callback fun(output:string)
+function osprocess.onstdout(callback) end
+
+---@param callback fun(output:string)
+function osprocess.onstderror(callback) end
+
+---@param data string
+function osprocess.stdinwrite(data) end
+
+---@param callback fun(errorcode:integer)
+function osprocess.onexit(callback) end
+
+function osprocess.wait() end
+
+function osprocess.kill() end
+
+function osprocess.sync() end
+
+function osprocess.start() end
+
+---@param cmd string
+---@param args string[]
+---@return osprocess
+function osmodule.exec(cmd, args) end
+

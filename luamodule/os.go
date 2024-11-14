@@ -2,8 +2,10 @@ package luamodule
 
 import (
 	"errors"
+	"io"
 	"io/fs"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 
@@ -173,5 +175,114 @@ func MakeOsModule(l *lua.LState) *lua.LTable {
 	}
 
 	l.SetField(table, "uname", unametable)
+	l.SetField(table, "exec", l.NewFunction(func(l *lua.LState) int {
+		cmd := l.ToString(1)
+		args := utils.Tostringarray(l.ToTable(2))
+
+		type processstate struct {
+			process          *exec.Cmd
+			workingdir       string
+			stdinpipe        *io.WriteCloser
+			stdoutpipe       *io.ReadCloser
+			stderrpipe       *io.ReadCloser
+			onexitcallback   *lua.LFunction
+			onstdoutcallback *lua.LFunction
+			onstderrcallback *lua.LFunction
+		}
+		state := processstate{
+			process: exec.Command(cmd, args...),
+		}
+		//table state
+
+		//
+		rettable := l.NewTable()
+		l.SetField(rettable, "start", l.NewFunction(func(l *lua.LState) int {
+			err := state.process.Start()
+			utils.CheckErr(err)
+
+			return 0
+		}))
+
+		l.SetField(rettable, "setworkingdir", l.NewFunction(func(l *lua.LState) int {
+			state.process.Dir = state.workingdir
+			return 0
+		}))
+		l.SetField(rettable, "stdinwrite", l.NewFunction(func(l *lua.LState) int {
+			data := l.ToString(1)
+			if state.stdinpipe == nil {
+				stdinpipe, err := state.process.StdinPipe()
+				utils.CheckErr(err)
+				state.stdinpipe = &stdinpipe
+			}
+			_, err := (*state.stdinpipe).Write([]byte(data))
+			utils.CheckErr(err)
+			return 0
+		}))
+		l.SetField(rettable, "onstderror", l.NewFunction(func(l *lua.LState) int {
+			callback := l.ToFunction(1)
+			state.onstderrcallback = callback
+			return 0
+		}))
+		l.SetField(rettable, "onstdout", l.NewFunction(func(l *lua.LState) int {
+			callback := l.ToFunction(1)
+			state.onstdoutcallback = callback
+			return 0
+		}))
+		l.SetField(rettable, "onexit", l.NewFunction(func(l *lua.LState) int {
+			callback := l.ToFunction(1)
+			state.onexitcallback = callback
+			return 0
+		}))
+		l.SetField(rettable, "exited", l.NewFunction(func(l *lua.LState) int {
+			l.Push(lua.LBool(state.process.ProcessState.Exited()))
+			return 1
+		}))
+		l.SetField(rettable, "wait", l.NewFunction(func(l *lua.LState) int {
+			utils.CheckErr(state.process.Wait())
+			return 0
+		}))
+		l.SetField(rettable, "kill", l.NewFunction(func(l *lua.LState) int {
+			utils.CheckErr(state.process.Process.Kill())
+			return 0
+		}))
+		l.SetField(rettable, "sync", l.NewFunction(func(l *lua.LState) int {
+			if state.onstdoutcallback != nil {
+				if state.stdoutpipe == nil {
+					stdinpipe, err := state.process.StdoutPipe()
+					utils.CheckErr(err)
+					state.stdoutpipe = &stdinpipe
+				}
+
+				newtext := make([]byte, 0)
+				_, err := (*state.stdoutpipe).Read(newtext)
+				utils.CheckErr(err)
+
+				l.Push(state.onstdoutcallback)
+				l.Push(lua.LString(newtext))
+				l.PCall(1, 0, nil)
+			}
+			if state.onstderrcallback != nil {
+				if state.stderrpipe == nil {
+					stdinpipe, err := state.process.StderrPipe()
+					utils.CheckErr(err)
+					state.stderrpipe = &stdinpipe
+				}
+
+				newtext := make([]byte, 0)
+				_, err := (*state.stderrpipe).Read(newtext)
+				utils.CheckErr(err)
+
+				l.Push(state.onstderrcallback)
+				l.Push(lua.LString(newtext))
+				l.PCall(1, 0, nil)
+			}
+
+			utils.CheckErr(state.process.Process.Kill())
+			return 0
+		}))
+
+		l.Push(rettable)
+		return 1
+	}))
 	return table
 }
