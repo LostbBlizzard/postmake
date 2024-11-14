@@ -89,3 +89,5 @@ function osprocess.start() end
 ---@return osprocess
 function osmodule.exec(cmd, args) end
 
+---@param second integer
+function osmodule.sleep(second) end

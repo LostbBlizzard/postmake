@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"time"
 
 	"postmake/utils"
 
@@ -175,6 +176,13 @@ func MakeOsModule(l *lua.LState) *lua.LTable {
 	}
 
 	l.SetField(table, "uname", unametable)
+
+	l.SetField(table, "sleep", l.NewFunction(func(l *lua.LState) int {
+		sec := l.ToInt64(1)
+		time.Sleep(time.Duration(sec) * time.Second)
+		return 0
+	}))
+
 	l.SetField(table, "exec", l.NewFunction(func(l *lua.LState) int {
 		cmd := l.ToString(1)
 		args := utils.Tostringarray(l.ToTable(2))
