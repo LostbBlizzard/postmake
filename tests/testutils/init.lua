@@ -3,6 +3,7 @@ local m = {}
 
 local innosetup = postmake.loadplugin("internal/innosetup")
 local shellscript = postmake.loadplugin("internal/shellscript")
+local githubaction = postmake.loadplugin("internal/githubaction")
 
 local valueif = postmake.lua.valueif
 -- local shallow_copy = postmake.lua.shallow_copy
@@ -157,7 +158,9 @@ local function shellscriptcheck(configs, pluginconfig)
 	postmake.os.mkdirall(pluginconfig.uploaddir)
 
 	local localconfig = deep_copy(pluginconfig)
-	localconfig.testmode = true
+	if pluginconfig.testmode == nil then
+		localconfig.testmode = true
+	end
 
 	postmake.make(shellscript, configs, localconfig)
 
@@ -210,6 +213,9 @@ local function runtest(configs, pluginconfig)
 
 	---@type shellscriptstyle[]
 	local liststyles = { 'classic', 'modern' }
+
+	---@type boolean[]
+	local liststaticservermode = { false, true }
 	---
 	local copy = deep_copy(pluginconfig)
 
@@ -271,30 +277,84 @@ local function runtest(configs, pluginconfig)
 		print("passed style test " .. value)
 	end
 
+
+	---@return boolean
+	local function dostaticsevercheck(configs, config)
+		local localseverport = "3000"
+		local weburl = "http://localhost:" .. localseverport .. "/"
+
+		local configcopy = deep_copy(config)
+		configcopy.weburl = weburl
+		configcopy.testmode = false
+
+		local exitcode = os.execute("cd ../../staticserver && go build")
+		if exitcode ~= 0 then
+			print("go build failed with bad exit code")
+			return false
+		end
+
+		local dir = postmake.path.absolute(configcopy.uploaddir)
+		print("makeing staticserver on " .. weburl .. " on directory " .. dir)
+
+		local serverproc = postmake.os.exec("../../staticserver/staticserver",
+			{ localseverport, configcopy.uploaddir })
+		serverproc.start()
+		print("started server")
+
+		postmake.os.sleep(1) -- wait a bit for the sever to start up.
+
+		local test = shellscriptcheck(configs, configcopy)
+
+		serverproc.kill()
+		return test
+	end
+
+	if true then
+		print("")
+		print("runing uploaddir and weburl download test")
+
+		local didok = dostaticsevercheck(configs, copy)
+		if didok == false then
+			print("failed uploaddir and weburl download test")
+			return false
+		end
+		print("passed style test uploaddir and weburl")
+	end
+
 	print("runing matrices")
 	print("")
 	for _, compression in ipairs(listcompressiontypes) do
 		for _, singlefile in ipairs(listofsinglefile) do
 			for _, sytle in ipairs(liststyles) do
-				local configcopy = deep_copy(copy)
+				for _, istaticserver in ipairs(liststaticservermode) do
+					local configcopy = deep_copy(copy)
 
-				if singlefile ~= nil then
-					configcopy.singlefile = singlefile
+					if singlefile ~= nil then
+						configcopy.singlefile = singlefile
+					end
+					configcopy.style = sytle
+					configcopy.compressiontype = compression
+
+					local test
+					if istaticserver then
+						test = shellscriptcheck(configs, configcopy)
+					else
+						test = dostaticsevercheck(configs, configcopy)
+					end
+					if test == false then
+						local outputstring = "failed matric test [style:" .. sytle .. ",";
+						outputstring = outputstring ..
+						    "singlefile:" .. valueif(singlefile == nil, "true", "false") .. ","
+						outputstring = outputstring .. "compressiontype:" .. compression .. ","
+						outputstring = outputstring ..
+						    "isstaticserver:" .. tostring(istaticserver) .. ","
+
+
+						print(outputstring)
+						return false
+					end
+					print("")
 				end
-				configcopy.style = sytle
-				configcopy.compressiontype = compression
-
-				local test = shellscriptcheck(configs, configcopy)
-				if test == false then
-					local outputstring = "failed matric test [style:" .. sytle .. ",";
-					outputstring = outputstring ..
-					    "singlefile:" .. valueif(singlefile == nil, "true", "false") .. ","
-					outputstring = outputstring .. "compressiontype:" .. compression .. ","
-
-					print(outputstring)
-					return false
-				end
-				print("")
 			end
 		end
 	end
@@ -332,6 +392,8 @@ function m.make(plugin, configs, pluginconfig)
 
 		return not hasfailed
 	elseif plugin == innosetup then
+		return true
+	elseif plugin == githubaction then
 		return true
 	end
 	return false
