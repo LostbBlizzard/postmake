@@ -1,3 +1,5 @@
 output
 lua/bin
 postmake
+staticserver/static
+staticserver/staticserver
