@@ -20,7 +20,7 @@ local VersionSetting = {}
 ---@field weburl string
 ---@field uploaddir? string
 ---@field version? VersionSetting
----@field singlefile? boolean
+---@field singlefile? string
 ---@field compressiontype? shellscriptcompressiontype
 ---@field export GitHubActionExportVarable[]
 ---@field dependencies? GitHubActionConfigDependencies

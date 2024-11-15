@@ -15,7 +15,8 @@ local AllowedSettingsFields = {
 	"version",
 	"export",
 	"dependencies",
-	"testmode"
+	"testmode",
+	"compressiontype"
 }
 
 local programinstalldir = ""
