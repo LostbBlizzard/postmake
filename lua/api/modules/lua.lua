@@ -93,8 +93,8 @@ function luamodule.deep_copy(o, seen)
 	setmetatable(no, luamodule.deep_copy(getmetatable(o), seen))
 
 	for k, v in next, o, nil do
-		k = (type(k) == 'table') and k:deepcopy(seen) or k
-		v = (type(v) == 'table') and v:deepcopy(seen) or v
+		k = (type(k) == 'table') and luamodule.deep_copy(k, seen) or k
+		v = (type(v) == 'table') and luamodule.deep_copy(v, seen) or v
 		no[k] = v
 	end
 	return no
