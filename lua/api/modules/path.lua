@@ -21,3 +21,11 @@ function pathmodule.getparent(path) end
 ---@param path string
 ---@return string
 function pathmodule.absolute(path) end
+
+---@param path string
+---@return string
+function pathmodule.getfileext(path) end
+
+---@param path string
+---@return string
+function pathmodule.getfullfileext(path) end

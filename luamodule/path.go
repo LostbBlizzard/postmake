@@ -36,6 +36,26 @@ func MakePathModule(l *lua.LState) *lua.LTable {
 		l.Push(lua.LString(strings.TrimSuffix(path, filepath.Ext(path))))
 		return 1
 	}))
+	l.SetField(table, "getfileext", l.NewFunction(func(l *lua.LState) int {
+		path := l.ToString(1)
+
+		l.Push(lua.LString(filepath.Ext(path)))
+		return 1
+	}))
+	l.SetField(table, "getfullfileext", l.NewFunction(func(l *lua.LState) int {
+		path := l.ToString(1)
+
+		r := ""
+		for i := 0; i < len(path); i++ {
+			if path[i] == '.' {
+				r = path[i:]
+				break
+			}
+		}
+
+		l.Push(lua.LString(r))
+		return 1
+	}))
 	l.SetField(table, "getparent", l.NewFunction(func(l *lua.LState) int {
 		path := l.ToString(1)
 
