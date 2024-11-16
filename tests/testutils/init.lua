@@ -434,9 +434,6 @@ local function githubcheck(configs, pluginconfig)
 			postmake.os.sleep(1) -- wait a bit for the sever to start up.
 
 			exitcode = os.execute("cd " .. actionpath .. " && node ./dist/index.js")
-			while true do
-
-			end
 			serverproc.kill()
 
 			if exitcode ~= 0 then
@@ -467,8 +464,8 @@ local function runtestgithubaction(configs, pluginconfig)
 	---@type shellscriptcompressiontype[]
 	local listcompressiontypes = { 'tar.gz', 'zip' }
 
-	---@type (string|nil)[]
-	local listsinglefile = { nil, "singlefile" }
+	---@type string[]
+	local listsinglefile = { "", "singlefile" }
 
 	---@type boolean[]
 	local listversion = { false, true }
@@ -504,7 +501,7 @@ local function runtestgithubaction(configs, pluginconfig)
 		print("runing single type " .. tostring(value))
 
 		local configcopy = deep_copy(copy)
-		if value ~= nil then
+		if value ~= "" then
 			configcopy.singlefile = value
 		end
 
@@ -544,7 +541,7 @@ local function runtestgithubaction(configs, pluginconfig)
 					configcopy.version = {}
 				end
 				configcopy.compressiontype = compression
-				if singlefile ~= nil then
+				if singlefile ~= "" then
 					configcopy.singlefile = singlefile
 				end
 

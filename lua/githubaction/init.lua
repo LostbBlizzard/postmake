@@ -90,6 +90,8 @@ local function ispathcmd(path)
 	return string.find(path, "/", nil, true) or string.find(path, ".", nil, true)
 end
 
+local unziphint = "**"
+
 ---@param outputfile file*
 ---@param cmd plugincmd
 ---@param iswindows boolean
@@ -275,16 +277,6 @@ local function onconfig(myindent, outputfile, config, weburl, uploaddir, uploadf
 					myarchive.archivepath = output .. getzipext(compressiontype)
 				end
 
-				if versionprogramconfig ~= nil then
-					---@type programfile
-					local newfile = {
-						fileinput = newout,
-						fileoutput = resolveoutputpath(output),
-					}
-
-					table.insert(versionprogramconfig.programversion.files, newfile)
-				end
-
 				table.insert(archivestomake, myarchive)
 				isfirst = true
 			end
@@ -313,7 +305,7 @@ local function onconfig(myindent, outputfile, config, weburl, uploaddir, uploadf
 						end
 
 						outputfile:write(myindent ..
-							"unzipdir(\"" .. startingfilepath ..
+							"await unzipdir(\"" .. startingfilepath ..
 							"\",\"" .. outputfilepath .. "\");\n\n")
 					else
 						local startingfilepath = resolveoutputpath("/" .. newout)
@@ -334,18 +326,18 @@ local function onconfig(myindent, outputfile, config, weburl, uploaddir, uploadf
 							weburl .. "/" .. newout .. "\",\"" .. outputfilepath .. "\");\n")
 
 						outputfile:write(myindent ..
-							"unzipdir(\"" .. startingfilepath ..
+							"await unzipdir(\"" .. outputfilepath ..
 							"\",\"" .. outputfilepathnoext .. "\");\n")
 
 
 						outputfile:write(myindent ..
-							"removefile(\"" .. startingfilepath .. "\");\n\n")
+							"removefile(\"" .. outputfilepath .. "\");\n\n")
 					end
 				else
 					---@type programfile
 					local newfile = {
 						fileinput = newout,
-						fileoutput = resolveoutputpath(output),
+						fileoutput = resolveoutputpath(output) .. unziphint,
 					}
 
 					table.insert(versionprogramconfig.programversion.files, newfile)
@@ -415,11 +407,12 @@ local function getversionindexjsfile()
 	r = r ..
 	    "if (programversion.version == versiontodownload || (i == databaseinfo.versions.length - 1 && versiontodownload == \"latest\")) {\n\n"
 
-	r = r .. "var downloadurl = databaseinfo.downloadurl\n"
+	r = r .. "var downloadurl = programversion.downloadurl\n"
 	r = r .. "for (var i = 0; i < programversion.programs.length; i++) {\n"
 
 	r = r .. "    var program = programversion.programs[i]\n"
-	r = r .. "    if (program.os == process.platform && program.arch == process.arch) {\n"
+	r = r ..
+	    "    if (program.os == process.platform && (program.arch == process.arch || program.arch == \"universal\")) {\n"
 	r = r ..
 	    "        console.log(\"downloading \" + programversion.version + \" \" + program.os + \"-\" + program.arch);\n"
 	r = r .. "        for (var i = 0; i < program.paths.length; i++) {\n"
@@ -427,7 +420,19 @@ local function getversionindexjsfile()
 	r = r .. "        }\n"
 	r = r .. "        for (var i = 0; i < program.files.length; i++) {\n"
 	r = r .. "            var newfile = program.files[i]\n"
-	r = r .. "            downloadfile(downloadurl + \" / \" + newfile.fileinput, newfile.fileoutput)\n"
+	r = r .. "            var unzip = endsWith(newfile.fileoutput, \"" .. unziphint .. "\")\n"
+	r = r .. "            if (unzip) {\n"
+	r = r .. "                       var ext = getfileext(newfile.fileinput)\n"
+	r = r .. "                       var name = newfile.fileoutput.substr(0, newfile.fileoutput.length -" ..
+	    tostring(unziphint:len()) .. ")\n"
+	r = r ..
+	    "                            var newp = name + ext\n"
+	r = r .. "                       downloadfile(downloadurl + \"/\" + newfile.fileinput, newp)\n"
+	r = r .. "                       await unzipdir(newp, name)\n"
+	r = r .. "                       removefile(newp)\n"
+	r = r .. "            } else {\n"
+	r = r .. "            downloadfile(downloadurl + \"/\" + newfile.fileinput, newfile.fileoutput)\n"
+	r = r .. "            }\n"
 	r = r .. "        }\n"
 	r = r .. "        foundversion = true\n"
 	r = r .. "        break\n"
@@ -665,6 +670,8 @@ function build.make(postmake, configs, settings)
 		indexfile:write("const github = require('@actions/github');\n")
 	end
 	indexfile:write("const fs = require('fs');\n")
+	indexfile:write("const tar = require('tar');\n")
+	indexfile:write("const AdmZip = require('adm-zip');\n")
 
 
 	if hasfiles then
@@ -683,6 +690,11 @@ function build.make(postmake, configs, settings)
 		indexfile:write("}\n")
 
 
+		indexfile:write("function endsWith(str, suffix) {\n")
+		indexfile:write("    return str.indexOf(suffix, str.length - suffix.length) !== -1;\n")
+		indexfile:write("}\n")
+
+
 		indexfile:write("\nfunction downloadfile(url, outputfile) {\n")
 		indexfile:write(indent .. "var command = \"curl -L \" + url + \" -o \" + outputfile;\n")
 
@@ -696,11 +708,19 @@ function build.make(postmake, configs, settings)
 		indexfile:write("}\n")
 
 
-		indexfile:write("\nfunction unzipdir(inputpath,outputpath) {\n")
+		indexfile:write("\nasync function unzipdir(inputpath,outputpath) {\n")
 
 		indexfile:write("var ext = getfileext(inputpath)\n")
 		indexfile:write("if (ext == \".zip\") {\n")
-		indexfile:write("} else if (ext == \".gz.tar\") {\n")
+		indexfile:write("fs.mkdirSync(outputpath, { recursive: true })\n")
+		indexfile:write("const zip = new AdmZip(inputpath);\n")
+		indexfile:write("zip.extractAllTo(outputpath,true);\n")
+		indexfile:write("} else if (ext == \".tar.gz\") {\n")
+		indexfile:write("fs.mkdirSync(outputpath, { recursive: true })\n")
+		indexfile:write("await tar.x({\n")
+		indexfile:write("    file: inputpath,\n")
+		indexfile:write("    C: outputpath,\n")
+		indexfile:write("})\n")
 		indexfile:write("}\n")
 
 		indexfile:write("}\n")
@@ -738,6 +758,7 @@ function build.make(postmake, configs, settings)
 		indexfile:write("\nfunction revolvewindowspath(path) {\n")
 		indexfile:write("}\n")
 	end
+	indexfile:write("async function main() {\n")
 
 	local uploadfilecontext = {}
 
@@ -895,6 +916,9 @@ function build.make(postmake, configs, settings)
 		indexfile:write("}\n")
 	end
 
+	indexfile:write("}\n")
+	indexfile:write("main();")
+
 	indexfile:close()
 
 	local actionymlfile = io.open(actionymlpath, "w")
@@ -981,6 +1005,8 @@ function build.make(postmake, configs, settings)
 		os.exit(1)
 	end
 	makefile:write("build:\n")
+	makefile:write("\tnpm install tar\n\n")
+	makefile:write("\tnpm install adm-zip\n\n")
 	makefile:write("\tncc build src/index.js -o dist\n\n")
 
 	makefile:close()
