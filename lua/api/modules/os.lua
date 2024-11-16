@@ -17,6 +17,7 @@ function unamemodule.isunix() end
 
 ---@class osmodule
 ---@field uname unamemodule
+---@field curl curlmodule
 local osmodule = {}
 
 ---@param input string
@@ -91,3 +92,15 @@ function osmodule.exec(cmd, args) end
 
 ---@param second integer
 function osmodule.sleep(second) end
+
+---@class curlmodule
+local curlmodule = {}
+
+---@param weburl string
+---@param outputpath string
+function curlmodule.downloadfile(weburl, outputpath) end
+
+--- this function may be updated later in future.
+---@param weburl string
+---@param body string
+function curlmodule.post(weburl, body) end

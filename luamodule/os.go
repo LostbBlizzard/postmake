@@ -1,9 +1,12 @@
 package luamodule
 
 import (
+	"bytes"
 	"errors"
+	"fmt"
 	"io"
 	"io/fs"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -292,5 +295,55 @@ func MakeOsModule(l *lua.LState) *lua.LTable {
 		l.Push(rettable)
 		return 1
 	}))
+
+	curltable := l.NewTable()
+	{
+		// from https://stackoverflow.com/questions/11692860/how-can-i-efficiently-download-a-large-file-using-go by answered Nov 22, 2015 at 10:38 Pablo Jomer
+		l.SetField(curltable, "downloadfile", l.NewFunction(func(l *lua.LState) int {
+			url := l.ToString(1)
+			outputpath := l.ToString(2)
+
+			// Create the file
+			out, err := os.Create(outputpath)
+			if err != nil {
+				utils.CheckErr(err)
+			}
+			defer out.Close()
+
+			// Get the data
+			resp, err := http.Get(url)
+			if err != nil {
+				utils.CheckErr(err)
+			}
+			defer resp.Body.Close()
+
+			// Check server response
+			if resp.StatusCode != http.StatusOK {
+				err := fmt.Errorf("bad status: %s", resp.Status)
+				utils.CheckErr(err)
+			}
+
+			// Writer the body to file
+			_, err = io.Copy(out, resp.Body)
+			if err != nil {
+				utils.CheckErr(err)
+			}
+
+			return 0
+		}))
+
+		l.SetField(curltable, "post", l.NewFunction(func(l *lua.LState) int {
+			url := l.ToString(1)
+			body := l.ToString(2)
+
+			_, err := http.NewRequest("POST", url, bytes.NewBuffer([]byte(body)))
+			utils.CheckErr(err)
+
+			return 0
+		}))
+	}
+
+	l.SetField(table, "curl", curltable)
+
 	return table
 }
