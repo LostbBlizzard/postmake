@@ -317,12 +317,16 @@ local function onconfig(myindent, outputfile, config, weburl, uploaddir, uploadf
 							"\",\"" .. outputfilepath .. "\");\n\n")
 					else
 						local startingfilepath = resolveoutputpath("/" .. newout)
-						local outputfilepath = resolveoutputpath(output)
+						local outputfilepathnoext = resolveoutputpath(output)
 
 						if iswindowsos then
-							outputfilepath = linuxpathtowindows(outputfilepath)
+							outputfilepathnoext = linuxpathtowindows(outputfilepathnoext)
 							startingfilepath = linuxpathtowindows(startingfilepath)
 						end
+
+						local outputfilepath = outputfilepathnoext
+						    .. postmake.path.getfullfileext(startingfilepath)
+
 
 
 						outputfile:write(myindent ..
@@ -331,11 +335,11 @@ local function onconfig(myindent, outputfile, config, weburl, uploaddir, uploadf
 
 						outputfile:write(myindent ..
 							"unzipdir(\"" .. startingfilepath ..
-							"\",\"" .. outputfilepath .. "\");\n")
+							"\",\"" .. outputfilepathnoext .. "\");\n")
 
 
 						outputfile:write(myindent ..
-							"removedir(\"" .. outputfilepath .. "\");\n\n")
+							"removefile(\"" .. startingfilepath .. "\");\n\n")
 					end
 				else
 					---@type programfile
@@ -673,6 +677,12 @@ function build.make(postmake, configs, settings)
 	indexfile:write("var isUnix = isLinux || isMac;\n\n")
 
 	if hasfiles then
+		indexfile:write("function getfileext(filepath) {\n")
+		indexfile:write("    var ext = filepath.substring(filepath.indexOf('.'));\n")
+		indexfile:write("    return ext;\n")
+		indexfile:write("}\n")
+
+
 		indexfile:write("\nfunction downloadfile(url, outputfile) {\n")
 		indexfile:write(indent .. "var command = \"curl -L \" + url + \" -o \" + outputfile;\n")
 
@@ -687,9 +697,20 @@ function build.make(postmake, configs, settings)
 
 
 		indexfile:write("\nfunction unzipdir(inputpath,outputpath) {\n")
+
+		indexfile:write("var ext = getfileext(inputpath)\n")
+		indexfile:write("if (ext == \".zip\") {\n")
+		indexfile:write("} else if (ext == \".gz.tar\") {\n")
+		indexfile:write("}\n")
+
 		indexfile:write("}\n")
 
 		indexfile:write("\nfunction removedir(path) {\n")
+		indexfile:write(" fs.rmSync(path, { recursive: true, force: true });\n ")
+		indexfile:write("}\n")
+
+		indexfile:write("\nfunction removefile(path) {\n")
+		indexfile:write(" fs.unlinkSync(path);\n ")
 		indexfile:write("}\n")
 	end
 	if singlefile and not version then
