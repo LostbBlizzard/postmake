@@ -395,9 +395,14 @@ local function onconfig(myindent, outputfile, config, weburl, uploaddir, uploadf
 	end
 end
 
+---@param databaseurl string?
 ---@return string
-local function getversionindexjsfile()
+local function getversionindexjsfile(databaseurl)
 	local r = "try {\n"
+	if databaseurl ~= nil then
+		r = r .. "downloadfile(" .. databaseurl .. "\");\n"
+	end
+
 	r = r .. "const data = fs.readFileSync('database.json', 'utf8');\n"
 	r = r .. "const databaseinfo = JSON.parse(data);\n\n"
 	r = r .. "var foundversion = false;\n\n"
@@ -476,6 +481,7 @@ end
 ---@field installdir string
 ---@field downloadurl string
 ---@field programs programversion[]
+---@field singlefile string
 
 ---@class programdatabase
 ---@field versions versiondata[]
@@ -573,14 +579,39 @@ function build.make(postmake, configs, settings)
 	local allflags = {}
 
 	if version ~= nil then
-		local databasejsonpath = outputpathdir .. "database.json"
-		-- local olddatabasetext = ""
-
-		---@type programdatabase
-		-- local olddata = json.decode(olddatabasetext)
+		---@cast version VersionSetting
 
 		---@type programdatabase
 		olddata = { versions = {} }
+		if version.getdatabase ~= nil then
+			if type(version.getdatabase) == "string" then
+				---@type string
+				local url = version.getdatabase
+				if url:find("https://") then
+					local jsontext = postmake.os.curl.downloadtext(url)
+					olddata = json.decode(jsontext)
+				else
+					local function read_file(path)
+						local file = io.open(path, "rb") -- r read mode and b binary mode
+						if not file then return nil end
+						local content = file:read "*a" -- *a or *all reads the whole file
+						file:close()
+						return content
+					end
+					local jsontext = read_file(url)
+					olddata = json.decode(jsontext)
+				end
+			else
+				if type(version.getdatabase) == "function" then
+					---@type fun():string
+					local func = version.getdatabase
+					olddata = json.decode(func())
+				else
+					print("version.getdatabase is not an string or an function")
+					os.exit(1)
+				end
+			end
+		end
 
 
 		---@type versiondata
@@ -588,7 +619,7 @@ function build.make(postmake, configs, settings)
 			version = postmake.appversion(),
 			installdir = postmake.appinstalldir(),
 			downloadurl = settings.weburl,
-			singlefile = singlefile,
+			singlefile = lua.valueif(singlefile == nil, "", singlefile),
 			programs = {}
 		}
 		table.insert(olddata.versions, newprogramversion)
@@ -792,7 +823,7 @@ function build.make(postmake, configs, settings)
 		indexfile:write("if (versiontodownload == \"\") {\n")
 		indexfile:write("     versiontodownload = \"latest\";\n")
 		indexfile:write("}\n")
-		indexfile:write(getversionindexjsfile())
+		indexfile:write(getversionindexjsfile(version.actiondatabaseurl))
 	end
 
 	indexfile:write("\n\n")
@@ -1063,19 +1094,24 @@ function build.make(postmake, configs, settings)
 
 
 	if version ~= nil then
-		local databasejsonpath = outputpathdir .. "database.json"
-
-		local databasefile = io.open(databasejsonpath, "w")
-		if databasefile == nil then
-			print("unable to open file '" .. databasejsonpath .. "'")
-			os.exit(1)
-		end
-
 		---@type string
 		local newtext = json.encode(olddata)
 
-		databasefile:write(newtext)
-		databasefile:close()
+		if version.uploaddatabase ~= nil then
+			version.uploaddatabase(newtext)
+		else
+			local databasejsonpath = outputpathdir .. "database.json"
+
+			local databasefile = io.open(databasejsonpath, "w")
+			if databasefile == nil then
+				print("unable to open file '" .. databasejsonpath .. "'")
+				os.exit(1)
+			end
+
+
+			databasefile:write(newtext)
+			databasefile:close()
+		end
 	end
 
 	if singlefile ~= nil then

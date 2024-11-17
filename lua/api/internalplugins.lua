@@ -9,6 +9,9 @@
 local GitHubActionExportVarable = {}
 
 ---@class VersionSetting
+---@field getdatabase? (string|fun(): string)
+---@field actiondatabaseurl? string
+---@field uploaddatabase? fun(newdatabase:string)
 local VersionSetting = {}
 
 ---@class GitHubActionConfigDependencies

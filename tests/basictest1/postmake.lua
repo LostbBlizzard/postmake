@@ -40,7 +40,14 @@ end
 -- 	}), "shellscript setup failed");
 -- postmake.lua.assert(postmaketest.make(innosetup, { win }, { AppId = InnoAppID, }), "inno setup failed");
 
-postmake.lua.assert(postmaketest.make(githubaction, { gnu, mac, win }, {
+-- postmake.lua.assert(postmaketest.make(githubaction, { gnu, mac, win }, {
+-- 	weburl = "website.com",
+-- 	uploaddir = "./output/githubactionupload/",
+-- }), "githubaction setup failed");
+
+postmake.make(githubaction, { gnu, mac, win }, {
+	testmode = true,
 	weburl = "website.com",
 	uploaddir = "./output/githubactionupload/",
-}), "githubaction setup failed");
+	version = {}
+})

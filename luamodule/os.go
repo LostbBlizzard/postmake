@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"time"
 
 	"postmake/utils"
@@ -330,6 +331,39 @@ func MakeOsModule(l *lua.LState) *lua.LTable {
 			}
 
 			return 0
+		}))
+		l.SetField(curltable, "downloadtext", l.NewFunction(func(l *lua.LState) int {
+			url := l.ToString(1)
+			outputpath := l.ToString(2)
+
+			// Create the file
+			out, err := os.Create(outputpath)
+			if err != nil {
+				utils.CheckErr(err)
+			}
+			defer out.Close()
+
+			// Get the data
+			resp, err := http.Get(url)
+			if err != nil {
+				utils.CheckErr(err)
+			}
+			defer resp.Body.Close()
+
+			// Check server response
+			if resp.StatusCode != http.StatusOK {
+				err := fmt.Errorf("bad status: %s", resp.Status)
+				utils.CheckErr(err)
+			}
+
+			buf := new(strings.Builder)
+			_, err = io.Copy(buf, resp.Body)
+			if err != nil {
+				utils.CheckErr(err)
+			}
+
+			l.Push(lua.LString(buf.String()))
+			return 1
 		}))
 
 		l.SetField(curltable, "post", l.NewFunction(func(l *lua.LState) int {

@@ -100,6 +100,10 @@ local curlmodule = {}
 ---@param outputpath string
 function curlmodule.downloadfile(weburl, outputpath) end
 
+---@param weburl string
+---@return string
+function curlmodule.downloadtext(weburl) end
+
 --- this function may be updated later in future.
 ---@param weburl string
 ---@param body string
