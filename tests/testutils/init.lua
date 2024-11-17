@@ -393,8 +393,7 @@ local function githubcheck(configs, pluginconfig)
 
 	local oldp = postmake.appinstalldir
 	postmake.appinstalldir = postmake.path.absolute(oldp)
-	print(oldp)
-	print(postmake.appinstalldir)
+
 
 	postmake.make(githubaction, configs, localconfig)
 

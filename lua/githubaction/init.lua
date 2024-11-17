@@ -239,7 +239,7 @@ local function onconfig(myindent, outputfile, config, weburl, uploaddir, uploadf
 					end
 
 					outputfile:write(myindent ..
-						"movefile(\"" .. startingfilepath ..
+						"fs.renameSync(\"" .. startingfilepath ..
 						"\",\"" .. outputfilepath .. "\");\n\n")
 				else
 					local outputfilepath = newout
@@ -831,11 +831,30 @@ function build.make(postmake, configs, settings)
 		indexfile:write("}\n")
 	end
 	if singlefile and not version then
-		indexfile:write("\nfunction downloadmainfile() {\n")
+		local singlefilevarable = "\nvar singlefilepath = \"" ..
+		    postmake.appinstalldir() .. "/" .. singlefile .. "\"\n"
+		indexfile:write("\nasync function downloadmainfile() {\n")
+
+		indexfile:write(singlefilevarable)
+
+		indexfile:write("downloadfile(\"" ..
+			weburl ..
+			"/" ..
+			singlefile ..
+			getzipext(compressiontype) .. "\",singlefilepath + \"" .. getzipext(compressiontype) .. "\")\n")
+
+		indexfile:write("await unzipdir(singlefilepath + \"" ..
+			getzipext(compressiontype) .. "\",singlefilepath)\n")
+
+		indexfile:write("removefile(singlefilepath + \".tar.gz\")\n")
 
 		indexfile:write("}\n")
 
 		indexfile:write("\nfunction removemainfile() {\n")
+
+		indexfile:write(singlefilevarable)
+
+		indexfile:write("removedir(singlefilepath)\n")
 
 		indexfile:write("}\n")
 	end
@@ -953,7 +972,7 @@ function build.make(postmake, configs, settings)
 			end
 		end
 		if singlefile and not version then
-			indexfile:write("    downloadmainfile();\n")
+			indexfile:write(" await downloadmainfile();\n")
 		end
 		local dirspit = config.os() .. "-" .. config.arch()
 		onconfig(indent, indexfile, config, weburl, uploaddir, uploadfilecontext, compressiontype, singlefile,
