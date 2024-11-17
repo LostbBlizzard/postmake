@@ -4,13 +4,19 @@ local luamodule = {}
 
 ---@generic T : any
 --- @param boolean boolean
---- @param OnTrue T
---- @param OnFalse T
+--- @param OnTrue T|fun():T
+--- @param OnFalse T|fun():T
 --- @return T
 function luamodule.valueif(boolean, OnTrue, OnFalse)
 	if boolean then
+		if type(OnTrue) == "function" then
+			return OnTrue()
+		end
 		return OnTrue
 	else
+		if type(OnFalse) == "function" then
+			return OnFalse()
+		end
 		return OnFalse
 	end
 end

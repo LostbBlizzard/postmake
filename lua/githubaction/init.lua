@@ -212,12 +212,17 @@ local function onconfig(myindent, outputfile, config, weburl, uploaddir, uploadf
 				end)
 
 
-
 			if versionprogramconfig ~= nil then
+				local newfileinput = newfilename
+				if singlefile ~= nil then
+					newfileinput = output
+				end
+
 				---@type programfile
 				local newfile = {
-					fileinput = newfilename,
+					fileinput = newfileinput,
 					fileoutput = newout,
+					isexecutable = inputtable.isexecutable(),
 				}
 
 				table.insert(versionprogramconfig.programversion.files, newfile)
@@ -334,10 +339,17 @@ local function onconfig(myindent, outputfile, config, weburl, uploaddir, uploadf
 							"removefile(\"" .. outputfilepath .. "\");\n\n")
 					end
 				else
+					local newfileinput = newout
+					if singlefile ~= nil then
+						local ext = "." .. compressiontype
+						newfileinput = output .. ext
+					end
+
 					---@type programfile
 					local newfile = {
-						fileinput = newout,
+						fileinput = newfileinput,
 						fileoutput = resolveoutputpath(output) .. unziphint,
+						isexecutable = false
 					}
 
 					table.insert(versionprogramconfig.programversion.files, newfile)
@@ -420,24 +432,69 @@ local function getversionindexjsfile(databaseurl)
 	    "    if (program.os == process.platform && (program.arch == process.arch || program.arch == \"universal\")) {\n"
 	r = r ..
 	    "        console.log(\"downloading \" + programversion.version + \" \" + program.os + \"-\" + program.arch);\n"
+
+	r = r .. "        fs.mkdirSync(programversion.installdir, { recursive: true })\n\n"
+
+	r = r .. "        var hassinglefile = programversion.singlefile != \"\"\n"
+	r = r .. "        var singlefiledir = \"\"\n"
+	r = r .. "        if (hassinglefile) {\n"
+	r = r ..
+	    "            var singlefilepath = programversion.installdir + \"/\" + programversion.singlefile\n"
+	r = r .. "            singlefiledir = singlefilepath.substring(0, singlefilepath.indexOf('.'))\n"
+	r = r .. "            downloadfile(downloadurl + \"/\" + programversion.singlefile, singlefilepath)\n"
+	r = r .. "            await unzipdir(singlefilepath, singlefiledir)\n"
+	r = r .. "            removefile(singlefilepath)\n"
+	r = r .. "        }\n\n"
+
+
 	r = r .. "        for (var i = 0; i < program.paths.length; i++) {\n"
 	r = r .. "            addpath(program.paths[i])\n"
 	r = r .. "        }\n"
 	r = r .. "        for (var i = 0; i < program.files.length; i++) {\n"
 	r = r .. "            var newfile = program.files[i]\n"
-	r = r .. "            var unzip = endsWith(newfile.fileoutput, \"" .. unziphint .. "\")\n"
+	r = r .. "            var unzip = endsWith(newfile.fileoutput, \"" .. unziphint .. "\")\n\n"
+	r = r .. "            if (hassinglefile) {\n"
+	r = r .. "            var movedir = singlefiledir + \"/\" + program.os + \"-\" + program.arch\n"
+
+	r = r .. "            if (unzip) {\n"
+	r = r .. "             var movefilepath = movedir + \"/\" + newfile.fileinput\n"
+	r = r .. "             var outpath = newfile.fileoutput\n"
+	r = r .. "             outpath = outpath.substr(0, outpath.length - 2)\n"
+	r = r .. "             await unzipdir(movefilepath, outpath)\n"
+	r = r .. "            } else \n {\n"
+
+	r = r .. "            var movefilepath = movedir + \"/\" + newfile.fileinput\n"
+	r = r .. "            var outpath = newfile.fileoutput\n"
+	r = r .. "            var d = path.dirname(outpath)\n"
+	r = r .. "            fs.mkdirSync(d, { recursive: true })\n"
+	r = r .. "            fs.renameSync(movefilepath, outpath);\n"
+	r = r .. "            if (newfile.isexecutable) { fs.chmodSync(outpath, fs.constants.X_OK) }\n"
+
+
+	r = r .. "}\n   } else {\n "
 	r = r .. "            if (unzip) {\n"
 	r = r .. "                       var ext = getfileext(newfile.fileinput)\n"
 	r = r .. "                       var name = newfile.fileoutput.substr(0, newfile.fileoutput.length -" ..
 	    tostring(unziphint:len()) .. ")\n"
-	r = r ..
-	    "                            var newp = name + ext\n"
+
+	r = r .. "                       var newp = name + ext\n\n"
+
+	r = r .. "                       var d = path.dirname(newp)\n"
+	r = r .. "                       fs.mkdirSync(d, { recursive: true })\n\n"
+
 	r = r .. "                       downloadfile(downloadurl + \"/\" + newfile.fileinput, newp)\n"
 	r = r .. "                       await unzipdir(newp, name)\n"
 	r = r .. "                       removefile(newp)\n"
 	r = r .. "            } else {\n"
+	r = r .. "            var d = path.dirname(newfile.fileoutput)\n"
+	r = r .. "            fs.mkdirSync(d, { recursive: true })\n"
 	r = r .. "            downloadfile(downloadurl + \"/\" + newfile.fileinput, newfile.fileoutput)\n"
+	r = r .. "            if (newfile.isexecutable)  {  fs.chmodSync(newfile.fileoutput, fs.constants.X_OK) }\n"
+
 	r = r .. "            }\n"
+	r = r .. "        }\n } \n"
+	r = r .. "        if (hassinglefile) {\n"
+	r = r .. "           removedir(singlefiledir);\n"
 	r = r .. "        }\n"
 	r = r .. "        foundversion = true\n"
 	r = r .. "        break\n"
@@ -463,6 +520,7 @@ end
 ---@class programfile
 ---@field fileinput string
 ---@field fileoutput string
+---@field isexecutable boolean
 
 ---@class programcmd
 ---@field cmd string
@@ -477,6 +535,7 @@ end
 ---@field uninstallcmd programcmd[]
 
 ---@class versiondata
+---@field postmakeversion string
 ---@field version string
 ---@field installdir string
 ---@field downloadurl string
@@ -616,10 +675,13 @@ function build.make(postmake, configs, settings)
 
 		---@type versiondata
 		newprogramversion = {
+			postmakeversion = "1",
 			version = postmake.appversion(),
 			installdir = postmake.appinstalldir(),
 			downloadurl = settings.weburl,
-			singlefile = lua.valueif(singlefile == nil, "", singlefile),
+			singlefile = lua.valueif(singlefile == nil, "", function()
+				return singlefile .. getzipext(compressiontype)
+			end),
 			programs = {}
 		}
 		table.insert(olddata.versions, newprogramversion)
@@ -701,6 +763,7 @@ function build.make(postmake, configs, settings)
 		indexfile:write("const github = require('@actions/github');\n")
 	end
 	indexfile:write("const fs = require('fs');\n")
+	indexfile:write("const path = require('path');\n")
 	indexfile:write("const tar = require('tar');\n")
 	indexfile:write("const AdmZip = require('adm-zip');\n")
 
@@ -752,6 +815,9 @@ function build.make(postmake, configs, settings)
 		indexfile:write("    file: inputpath,\n")
 		indexfile:write("    C: outputpath,\n")
 		indexfile:write("})\n")
+
+		indexfile:write("} else {\n")
+		indexfile:write("    throw new Error('unable to unzip file type of \' + ext + \"\'\");\n")
 		indexfile:write("}\n")
 
 		indexfile:write("}\n")
@@ -920,6 +986,9 @@ function build.make(postmake, configs, settings)
 				indexfile:write(") {\n")
 			end
 
+			if singlefile ~= nil then
+				uploadfilecontext = {}
+			end
 
 			local dirspit = config.os() .. "-" .. config.arch()
 			onconfig(indent2, indexfile, output, weburl, uploaddir, uploadfilecontext, compressiontype,
