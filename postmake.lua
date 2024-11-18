@@ -1,17 +1,34 @@
-local innosetup = postmake.loadplugin("internal/innosetup")
-local shellscript = postmake.loadplugin("internal/shellscript")
-local githubaction = postmake.loadplugin("internal/githubaction")
-
 local appversionenv = os.getenv("POSTMAKEVERSION")
 -- App Settings
 postmake.appname = "postmake"
 postmake.appversion = "0.0.1"
+
+if postmake.mainthread ~= nil then
+	print("is mainthread")
+
+
+	while true do
+	end
+else
+	print("is workerthread")
+
+
+	while true do
+
+	end
+end
+
+local innosetup = postmake.loadplugin("internal/innosetup")
+local shellscript = postmake.loadplugin("internal/shellscript")
+local githubaction = postmake.loadplugin("internal/githubaction")
 
 if appversionenv ~= nil then
 	postmake.appversion = appversionenv
 end
 
 postmake.appinstalldir = "~/.postmake"
+
+postmake.appinstalldir = postmake.path.absolute("testpostmake")
 postmake.applicensefile = "LICENSE.txt"
 postmake.output = "./output/install"
 
@@ -87,7 +104,8 @@ all.addfile(postmake.applicensefile, postmake.installdir() .. "LICENSE.txt")
 
 all.If(addpathflag).addpath(postmake.installdir())
 
-local installwebsite = "https://github.com/LostbBlizzard/postmake/releases/tag/Release-" .. postmake.appversion
+-- local installwebsite = "https://github.com/LostbBlizzard/postmake/releases/tag/Release-" .. postmake.appversion
+local installwebsite = "http://localhost:3000/"
 
 postmake.make(shellscript, { gnu, mac },
 	---@type ShellScriptConfig
@@ -118,6 +136,9 @@ postmake.make(githubaction, { win, gnu, mac },
 	{
 		weburl = installwebsite,
 		uploaddir = "./output/githubactionupload/",
-		singlefile = "githubactioninstalldata",
-		version = {}
+		-- singlefile = "githubactioninstalldata",
+		version = {
+			getdatabase = "./output/install/githubaction/database.json"
+		},
+		testmode = true
 	});

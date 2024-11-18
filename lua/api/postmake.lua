@@ -19,6 +19,8 @@
 ---@field match matchmodule  a utility table with string matching funcions
 ---@field archive archivemodule  a utility table with archiveing files funcions
 ---@field compile compilemodule  a utility table with archiveing files funcions
+---@field mainthread? threadsmodule  a utility table with threading files funcions will exist if one the main thread
+---@field workerthread? workerthreadmodule  a utility table with archiveing files funcions will exist if on workerthread
 ---@field lua luamodule
 ---@field json jsonmodule
 postmake = {

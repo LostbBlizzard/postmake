@@ -16,10 +16,15 @@ import (
 	"postmake/utils"
 
 	lua "github.com/yuin/gopher-lua"
+	parse "github.com/yuin/gopher-lua/parse"
 )
 
 //go:embed lua/**
 var InternalFiles embed.FS
+
+type utilsharedstate struct {
+	threadinfo luamodule.Threadmoduleinfo
+}
 
 type ScriptRunerInput struct {
 	ScriptText    string
@@ -83,7 +88,7 @@ type PreBuildContext struct {
 const LuaiNSTALLdIR = "/"
 const LUAHOMEDir = "~/"
 
-func makepostbuildforplugin(l *lua.LState, oldpostbuild lua.LTable, _ *PreBuildContext) *lua.LTable {
+func makepostbuildforplugin(l *lua.LState, oldpostbuild lua.LTable, _ *PreBuildContext, state *utilsharedstate) *lua.LTable {
 	postbuilde := l.NewTable()
 
 	l.SetField(postbuilde, "appname", l.NewFunction(func(l *lua.LState) int {
@@ -119,17 +124,18 @@ func makepostbuildforplugin(l *lua.LState, oldpostbuild lua.LTable, _ *PreBuildC
 
 	l.SetField(postbuilde, "flags", newtableflags)
 
-	addutills(l, postbuilde)
+	addutills(l, postbuilde, state)
 	return postbuilde
 }
 
-func addutills(l *lua.LState, table *lua.LTable) {
+func addutills(l *lua.LState, table *lua.LTable, state *utilsharedstate) {
 
 	l.SetField(table, "os", luamodule.MakeOsModule(l))
 	l.SetField(table, "match", luamodule.MakeMatchModule(l))
 	l.SetField(table, "archive", luamodule.MakeArchiveModule(l))
 	l.SetField(table, "path", luamodule.MakePathModule(l))
 	l.SetField(table, "compile", luamodule.MakeCompileModule(l, InternalFiles))
+	l.SetField(table, "mainthread", luamodule.MakeThreadsModule(l, &state.threadinfo))
 
 	{
 		filetext, err := InternalFiles.ReadFile("lua/api/modules/lua.lua")
@@ -574,6 +580,26 @@ func DoMigrationIfNeeded(externalpluginspath string) error {
 	return nil
 }
 
+// CompileLua reads the passed lua file from disk and compiles it.
+func CompileLua(luatext string, name string) (*lua.FunctionProto, error) {
+	reader := strings.NewReader(luatext)
+	chunk, err := parse.Parse(reader, name)
+	if err != nil {
+		return nil, err
+	}
+
+	proto, err := lua.Compile(chunk, name)
+	if err != nil {
+		return nil, err
+	}
+	return proto, nil
+}
+func DoCompiled(L *lua.LState, proto *lua.FunctionProto) error {
+	lfunc := L.NewFunctionFromProto(proto)
+	L.Push(lfunc)
+	return L.PCall(0, lua.MultRet, nil)
+}
+
 func RunScript(input ScriptRunerInput) {
 	L := lua.NewState()
 	defer L.Close()
@@ -586,9 +612,14 @@ func RunScript(input ScriptRunerInput) {
 		tabletoconfig:  make(map[*lua.LTable]int),
 		pluginsrequres: make(map[string]lua.LValue),
 	}
+	utilstate := utilsharedstate{
+		threadinfo: luamodule.Threadmoduleinfo{
+			Maincompiled: nil,
+		},
+	}
 
 	postmaketable := L.NewTable()
-	addutills(L, postmaketable)
+	addutills(L, postmaketable, &utilstate)
 
 	L.SetField(postmaketable, "appname", lua.LString("app"))
 	L.SetField(postmaketable, "appversion", lua.LString("0.0.1"))
@@ -1034,7 +1065,7 @@ func RunScript(input ScriptRunerInput) {
 
 		l.Push(makefuncion)
 
-		l.Push(makepostbuildforplugin(l, *postmaketable, &prebuild))
+		l.Push(makepostbuildforplugin(l, *postmaketable, &prebuild, &utilstate))
 		l.Push(config)
 		l.Push(settings)
 
@@ -1047,7 +1078,14 @@ func RunScript(input ScriptRunerInput) {
 	}))
 	L.SetGlobal("postmake", postmaketable)
 
-	if err := L.DoString(string(input.ScriptText)); err != nil {
+	compiled, err := CompileLua(string(input.ScriptText), "postmake.lua")
+	if err != nil {
+		panic(err)
+	}
+
+	utilstate.threadinfo.Maincompiled = compiled
+
+	if err := DoCompiled(L, compiled); err != nil {
 		panic(err)
 	}
 }
