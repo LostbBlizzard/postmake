@@ -49,7 +49,7 @@ Go to [releases](https://github.com/LostbBlizzard/postmake/releases/latest) and 
 ## Unix(Mac or Linux)
 
 ```
-curl -L https://github.com/LostbBlizzard/postmake/releases/latest/install.sh | sh
+bash -c "$(curl -L https://github.com/LostbBlizzard/postmake/releases/latest/download/install.sh)"
 ```
 or go to [releases](https://github.com/LostbBlizzard/postmake/releases/latest) and download the install.sh and run it in your shell.
 

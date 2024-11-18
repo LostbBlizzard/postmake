@@ -87,7 +87,7 @@ all.addfile(postmake.applicensefile, postmake.installdir() .. "LICENSE.txt")
 
 all.If(addpathflag).addpath(postmake.installdir())
 
-local installwebsite = "https://github.com/LostbBlizzard/postmake/releases/tag/Release-" .. postmake.appversion
+local installwebsite = "https://github.com/LostbBlizzard/postmake/releases/download/Release-" .. postmake.appversion
 
 postmake.make(shellscript, { gnu, mac },
 	---@type ShellScriptConfig
