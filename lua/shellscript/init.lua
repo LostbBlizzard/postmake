@@ -1125,6 +1125,8 @@ function build.make(postmake, configs, settings)
 		end)
 
 		archive(compressiontype, inputfiles, mainfile)
+
+		postmake.os.rmall(maindir)
 	end
 
 	outputfile:close()
