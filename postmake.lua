@@ -100,7 +100,6 @@ postmake.make(shellscript, { gnu, mac },
 			program = postmake.installdir() .. "bin/" .. postmake.appname
 		},
 		singlefile = "shellscriptinstalldata",
-		testmode = true
 	});
 postmake.make(innosetup, { win },
 	---@type InnoSetConfig
