@@ -333,6 +333,9 @@ function build.make(postmake, configs, settings)
 
 	if settings.proxy then
 		local proxdirpath = postmake.output() .. "/innosetup"
+		if proxdirpath:find("./") then
+			proxdirpath = proxdirpath:sub(("./"):len() + 1, proxdirpath:len())
+		end
 		local proxyfilepath = proxdirpath .. "/" .. postmake.appname() .. ".exe"
 		local proxyscriptfilepath = proxdirpath .. "/main.lua"
 
@@ -353,14 +356,14 @@ function build.make(postmake, configs, settings)
 				.proxy.path))
 
 		outputfile:write("Source: \"" ..
-			proxyfilepath ..
+			util.innoinputapppath(proxyfilepath) ..
 			"\"; DestDir: \"" .. destdir
-			.. "\";\n")
+			.. "\"; Flags: ignoreversion\n")
 
 		outputfile:write("Source: \"" ..
-			proxyfilepath ..
+			util.innoinputapppath(proxyscriptfilepath) ..
 			"\"; DestDir: \"" .. destdir
-			.. "\";\n")
+			.. "\"; Flags: ignoreversion\n")
 
 		proxyfile:close()
 	end

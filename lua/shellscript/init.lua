@@ -276,7 +276,8 @@ local function onconfig(outputfile, config, weburl, uploaddir, uninstallfile, te
 					outputfile:write("echo 'Unziping " .. newout .. "'\n")
 
 					local ext = "." .. compressiontype
-					local file = singledir .. "/" .. dirspit .. output .. ext
+					local file = resolveoutputpath("/" .. singlefile) ..
+					    "/" .. dirspit .. output .. ext
 					local dirout = resolveoutputpath(output)
 
 					outputfile:write(makeunzipcmd(compressiontype, file, dirout) .. "\n")
@@ -802,7 +803,9 @@ function build.make(postmake, configs, settings)
 			end
 
 			if not has_value(dirtomake, f) then
-				table.insert(dirtomake, f)
+				if f ~= "$Installdir" then
+					table.insert(dirtomake, f)
+				end
 				outputfile:write("mkdir -p " .. f .. "\n")
 			end
 
