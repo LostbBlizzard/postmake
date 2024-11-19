@@ -38,15 +38,10 @@ jobs:
 
     - name: Create a release
       id: create_release
-      run: gh release create "Release-${{ github.event.inputs.VersionNumber }}" ./output/upload/* --title "$tag" --notes "$(cat changelog.md)"
+      run: gh release create "Release-${{ github.event.inputs.VersionNumber }}" ./output/upload/* ./output/githubactionupload/* ./output/install.sh --title "$tag" --notes "$(cat changelog.md)"
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Upload release assets
-      run: |
-         gh release upload "Release-${{ github.event.inputs.VersionNumber }}" ./output/install.sh
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Archive Output
       uses: actions/upload-artifact@v4
@@ -60,6 +55,13 @@ jobs:
       with:
          name: postmake.exe
          path: output/postmake.exe
+         retention-days: 1  
+
+    - name: Archive Output 3
+      uses: actions/upload-artifact@v4
+      with:
+         name: innosetup
+         path: output/install/innosetup
          retention-days: 1  
 
     - name: Upload github repo
@@ -77,12 +79,7 @@ jobs:
 
      - uses: actions/download-artifact@v4
        with:
-        name: postmake.exe
-        path: output
-
-     - uses: actions/download-artifact@v4
-       with:
-        name: install.iss
+        merge-multiple: true
       
      - name: Compile .ISS to .EXE Installer
        uses: Minionguyjpro/Inno-Setup-Action@v1.2.2
