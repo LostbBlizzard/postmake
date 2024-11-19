@@ -4,7 +4,7 @@ BuildInstallers:
 
 BuildInstallersWin:
 	make PreBuildInstallers
-	./output/postmake.exe build
+	output\postmake.exe build
 
 PreBuildInstallers:
 	mkdir -p ./lua/bin
