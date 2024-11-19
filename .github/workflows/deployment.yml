@@ -33,8 +33,8 @@ jobs:
     - name: Upload release artifacts
       uses: actions/upload-artifact@v3
       with:
-        name: release-artifacts
-        path: ./output/upload/
+        name: install.iss
+        path: ./output/install.sh
 
     - name: Create a release
       id: create_release
@@ -59,6 +59,11 @@ jobs:
        run: make BuildInstallersWin
        env:
         POSTMAKEVERSION: ${{ github.event.inputs.VersionNumber }}
+
+     - uses: actions/download-artifact@v4
+       with:
+        name: install.iss
+        path: ./output/install.sh
       
      - name: Compile .ISS to .EXE Installer
        uses: Minionguyjpro/Inno-Setup-Action@v1.2.2
