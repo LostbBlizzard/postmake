@@ -64,7 +64,7 @@ jobs:
         merge-multiple: true
 
      - name: copy install.iss to root
-       run:  copy /B /Y output\install.iss install.iss
+       run:  copy "output\install.iss" -Destination "install.iss"
       
      - name: Compile .ISS to .EXE Installer
        uses: Minionguyjpro/Inno-Setup-Action@v1.2.2
