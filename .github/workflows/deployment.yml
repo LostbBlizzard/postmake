@@ -69,7 +69,7 @@ jobs:
      - name: Compile .ISS to .EXE Installer
        uses: Minionguyjpro/Inno-Setup-Action@v1.2.2
        with:
-          path: ./output/install.iss
+          path: install.iss
 
      - name: Upload release assets
        run: gh release upload "Release-${{ github.event.inputs.VersionNumber}}" ./output/postmakeSetup.exe
