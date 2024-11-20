@@ -1125,6 +1125,7 @@ function build.make(postmake, configs, settings)
 	end
 	makefile:write("build:\n")
 	makefile:write("\tnpm install @actions/core\n\n")
+	makefile:write("\tnpm install @actions/github\n\n")
 	makefile:write("\tnpm install tar\n\n")
 	makefile:write("\tnpm install adm-zip\n\n")
 	makefile:write("\tncc build src/index.js -o dist\n\n")

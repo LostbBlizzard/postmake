@@ -31,10 +31,15 @@ jobs:
         POSTMAKEVERSION: ${{ github.event.inputs.VersionNumber }}
 
     - name: Upload release artifacts
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: install.iss
-        path: ./output/install.sh
+        path: |
+             output/install.sh
+             output/install
+             output/postmake.exe
+             lua/**/*.lua
+             LICENSE.txt
 
     - name: Create a release
       id: create_release
@@ -53,17 +58,10 @@ jobs:
     needs: [ build ]
     runs-on: windows-latest
     steps:
-     - uses: actions/checkout@v4 # Only here for gh release
-
-     - name: Build Installer
-       run: make BuildInstallersWin
-       env:
-        POSTMAKEVERSION: ${{ github.event.inputs.VersionNumber }}
 
      - uses: actions/download-artifact@v4
        with:
-        name: install.iss
-        path: ./output/install.sh
+        merge-multiple: true
       
      - name: Compile .ISS to .EXE Installer
        uses: Minionguyjpro/Inno-Setup-Action@v1.2.2
