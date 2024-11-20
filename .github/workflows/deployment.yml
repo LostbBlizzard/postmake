@@ -36,7 +36,7 @@ jobs:
         name: install.iss
         path: |
              output/install.iss
-             output/install
+             output/install/**
              output/postmake.exe
              lua/**/*.lua
              LICENSE.txt
