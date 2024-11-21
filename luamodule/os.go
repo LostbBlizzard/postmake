@@ -334,14 +334,6 @@ func MakeOsModule(l *lua.LState) *lua.LTable {
 		}))
 		l.SetField(curltable, "downloadtext", l.NewFunction(func(l *lua.LState) int {
 			url := l.ToString(1)
-			outputpath := l.ToString(2)
-
-			// Create the file
-			out, err := os.Create(outputpath)
-			if err != nil {
-				utils.CheckErr(err)
-			}
-			defer out.Close()
 
 			// Get the data
 			resp, err := http.Get(url)
