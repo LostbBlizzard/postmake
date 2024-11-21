@@ -549,7 +549,7 @@ local function runtestgithubaction(configs, pluginconfig)
 				if test == false then
 					local outputstring = "failed matric test [";
 					outputstring = outputstring ..
-					    "singlefile:" .. valueif(singlefile == nil, "true", "false") .. ","
+					    "singlefile:" .. valueif(singlefile == "", "true", "false") .. ","
 					outputstring = outputstring .. "compressiontype:" .. compression .. ","
 					outputstring = outputstring ..
 					    "version:" .. tostring(version) .. ","

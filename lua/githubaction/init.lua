@@ -94,22 +94,12 @@ local unziphint = "**"
 
 ---@param outputfile file*
 ---@param cmd plugincmd
----@param iswindows boolean
-local function writecomds(outputfile, cmd, iswindows)
+local function writecomds(outputfile, cmd)
 	local stringtowrite = "execSync("
 
 	if ispathcmd(cmd.cmd()) then
-		if iswindows then
-			stringtowrite = stringtowrite .. "revolvewindowspath("
-		end
-		stringtowrite = stringtowrite .. "\""
-
-		if iswindows then
-			stringtowrite = stringtowrite .. linuxpathtowindows(resolveoutputpath(cmd.cmd()))
-			stringtowrite = stringtowrite .. "\") + \""
-		else
-			stringtowrite = stringtowrite .. resolveoutputpath(cmd.cmd())
-		end
+		stringtowrite = stringtowrite .. "revolvepath(" .. "\""
+		stringtowrite = stringtowrite .. resolveoutputpath(cmd.cmd()) .. "\") + \""
 	else
 		stringtowrite = "\"" .. stringtowrite .. cmd.cmd()
 	end
@@ -117,16 +107,8 @@ local function writecomds(outputfile, cmd, iswindows)
 	for _, value in ipairs(cmd.pars()) do
 		stringtowrite = stringtowrite .. " "
 		if ispathcmd(value) then
-			if iswindows then
-				stringtowrite = stringtowrite .. "\" + revolvewindowspath(\""
-			end
-
-			if iswindows then
-				stringtowrite = stringtowrite .. linuxpathtowindows(resolveoutputpath(value))
-				stringtowrite = stringtowrite .. "\") + \""
-			else
-				stringtowrite = stringtowrite .. resolveoutputpath(value)
-			end
+			stringtowrite = stringtowrite .. "\" + revolvepath(\""
+			stringtowrite = stringtowrite .. resolveoutputpath(value) .. "\") + \""
 		else
 			stringtowrite = stringtowrite .. value
 		end
@@ -233,24 +215,18 @@ local function onconfig(myindent, outputfile, config, weburl, uploaddir, uploadf
 					    dirspit .. output
 
 					local outputfilepath = newout
-					if iswindowsos then
-						outputfilepath = linuxpathtowindows(outputfilepath)
-						startingfilepath = linuxpathtowindows(startingfilepath)
-					end
 
 					outputfile:write(myindent ..
-						"fs.renameSync(\"" .. startingfilepath ..
-						"\",\"" .. outputfilepath .. "\");\n\n")
+						"fs.renameSync(revolvepath(\"" .. startingfilepath ..
+						"\"),revolvepath(\"" .. outputfilepath .. "\"));\n\n")
 				else
 					local outputfilepath = newout
 
-					if iswindowsos then
-						outputfilepath = linuxpathtowindows(outputfilepath)
-					end
-
 					outputfile:write(myindent ..
 						"downloadfile(\"" ..
-						weburl .. "/" .. newfilename .. "\",\"" .. outputfilepath .. "\");\n\n")
+						weburl ..
+						"/" ..
+						newfilename .. "\",revolvepath(\"" .. outputfilepath .. "\"));\n\n")
 				end
 
 				if isunix and inputtable.isexecutable() then
@@ -304,22 +280,12 @@ local function onconfig(myindent, outputfile, config, weburl, uploaddir, uploadf
 
 						local outputfilepath = resolveoutputpath(output)
 
-						if iswindowsos then
-							outputfilepath = linuxpathtowindows(outputfilepath)
-							startingfilepath = linuxpathtowindows(startingfilepath)
-						end
-
 						outputfile:write(myindent ..
 							"await unzipdir(\"" .. startingfilepath ..
-							"\",\"" .. outputfilepath .. "\");\n\n")
+							"\",revolvepath(\"" .. outputfilepath .. "\"));\n\n")
 					else
 						local startingfilepath = resolveoutputpath("/" .. newout)
 						local outputfilepathnoext = resolveoutputpath(output)
-
-						if iswindowsos then
-							outputfilepathnoext = linuxpathtowindows(outputfilepathnoext)
-							startingfilepath = linuxpathtowindows(startingfilepath)
-						end
 
 						local outputfilepath = outputfilepathnoext
 						    .. postmake.path.getfullfileext(startingfilepath)
@@ -328,15 +294,17 @@ local function onconfig(myindent, outputfile, config, weburl, uploaddir, uploadf
 
 						outputfile:write(myindent ..
 							"downloadfile(\"" ..
-							weburl .. "/" .. newout .. "\",\"" .. outputfilepath .. "\");\n")
+							weburl ..
+							"/" ..
+							newout .. "\",revolvepath(\"" .. outputfilepath .. "\"));\n")
 
 						outputfile:write(myindent ..
-							"await unzipdir(\"" .. outputfilepath ..
-							"\",\"" .. outputfilepathnoext .. "\");\n")
+							"await unzipdir(revolvepath(\"" .. outputfilepath ..
+							"\"),revolvepath(\"" .. outputfilepathnoext .. "\"));\n")
 
 
 						outputfile:write(myindent ..
-							"removefile(\"" .. outputfilepath .. "\");\n\n")
+							"removefile(revolvepath(\"" .. outputfilepath .. "\"));\n\n")
 					end
 				else
 					local newfileinput = newout
@@ -364,10 +332,7 @@ local function onconfig(myindent, outputfile, config, weburl, uploaddir, uploadf
 		else
 			local pathtoadd = resolveoutputpath(output)
 
-			if iswindowsos then
-				pathtoadd = linuxpathtowindows(pathtoadd)
-			end
-			outputfile:write(myindent .. "addpath(\"" .. pathtoadd .. "\");\n")
+			outputfile:write(myindent .. "addpath(revolvepath(\"" .. pathtoadd .. "\"));\n")
 		end
 	end
 
@@ -383,7 +348,7 @@ local function onconfig(myindent, outputfile, config, weburl, uploaddir, uploadf
 	else
 		for _, cmd in ipairs(config.installcmds) do
 			outputfile:write(myindent)
-			writecomds(outputfile, cmd, iswindowsos)
+			writecomds(outputfile, cmd)
 			outputfile:write("\n")
 		end
 	end
@@ -433,14 +398,15 @@ local function getversionindexjsfile(databaseurl)
 	r = r ..
 	    "        console.log(\"downloading \" + programversion.version + \" \" + program.os + \"-\" + program.arch);\n"
 
-	r = r .. "        fs.mkdirSync(programversion.installdir, { recursive: true })\n\n"
+	r = r .. "        fs.mkdirSync(revolvepath(programversion.installdir), { recursive: true })\n\n"
 
 	r = r .. "        var hassinglefile = programversion.singlefile != \"\"\n"
 	r = r .. "        var singlefiledir = \"\"\n"
 	r = r .. "        if (hassinglefile) {\n"
 	r = r ..
-	    "            var singlefilepath = programversion.installdir + \"/\" + programversion.singlefile\n"
-	r = r .. "            singlefiledir = singlefilepath.substring(0, singlefilepath.indexOf('.'))\n"
+	    "            var singlefilepath = revolvepath(programversion.installdir) + \"/\" + programversion.singlefile\n"
+	r = r ..
+	    "            singlefiledir = revolvepath(programversion.installdir) + \"/\" + programversion.singlefile.substring(0, programversion.singlefile.indexOf('.'))\n"
 	r = r .. "            downloadfile(downloadurl + \"/\" + programversion.singlefile, singlefilepath)\n"
 	r = r .. "            await unzipdir(singlefilepath, singlefiledir)\n"
 	r = r .. "            removefile(singlefilepath)\n"
@@ -448,7 +414,7 @@ local function getversionindexjsfile(databaseurl)
 
 
 	r = r .. "        for (var i = 0; i < program.paths.length; i++) {\n"
-	r = r .. "            addpath(program.paths[i])\n"
+	r = r .. "            addpath(revolvepath(program.paths[i]))\n"
 	r = r .. "        }\n"
 	r = r .. "        for (var i = 0; i < program.files.length; i++) {\n"
 	r = r .. "            var newfile = program.files[i]\n"
@@ -458,17 +424,17 @@ local function getversionindexjsfile(databaseurl)
 
 	r = r .. "            if (unzip) {\n"
 	r = r .. "             var movefilepath = movedir + \"/\" + newfile.fileinput\n"
-	r = r .. "             var outpath = newfile.fileoutput\n"
+	r = r .. "             var outpath = revolvepath(newfile.fileoutput)\n"
 	r = r .. "             outpath = outpath.substr(0, outpath.length - 2)\n"
 	r = r .. "             await unzipdir(movefilepath, outpath)\n"
 	r = r .. "            } else \n {\n"
 
 	r = r .. "            var movefilepath = movedir + \"/\" + newfile.fileinput\n"
-	r = r .. "            var outpath = newfile.fileoutput\n"
+	r = r .. "            var outpath = revolvepath(newfile.fileoutput)\n"
 	r = r .. "            var d = path.dirname(outpath)\n"
 	r = r .. "            fs.mkdirSync(d, { recursive: true })\n"
 	r = r .. "            fs.renameSync(movefilepath, outpath);\n"
-	r = r .. "            if (newfile.isexecutable) { fs.chmodSync(outpath, fs.constants.X_OK) }\n"
+	r = r .. "            if (newfile.isexecutable) { fs.chmodSync(outpath, 0o775) }\n"
 
 
 	r = r .. "}\n   } else {\n "
@@ -486,10 +452,11 @@ local function getversionindexjsfile(databaseurl)
 	r = r .. "                       await unzipdir(newp, name)\n"
 	r = r .. "                       removefile(newp)\n"
 	r = r .. "            } else {\n"
+	r = r .. "            var filepath = revolvepath(newfile.fileoutput)\n"
 	r = r .. "            var d = path.dirname(newfile.fileoutput)\n"
 	r = r .. "            fs.mkdirSync(d, { recursive: true })\n"
-	r = r .. "            downloadfile(downloadurl + \"/\" + newfile.fileinput, newfile.fileoutput)\n"
-	r = r .. "            if (newfile.isexecutable)  {  fs.chmodSync(newfile.fileoutput, fs.constants.X_OK) }\n"
+	r = r .. "            downloadfile(downloadurl + \"/\" + newfile.fileinput, filepath)\n"
+	r = r .. "            if (newfile.isexecutable)  {  fs.chmodSync(filepath, 0o775) }\n"
 
 	r = r .. "            }\n"
 	r = r .. "        }\n } \n"
@@ -772,6 +739,8 @@ function build.make(postmake, configs, settings)
 		indexfile:write("const { execSync } = require(\"child_process\");\n")
 	end
 
+	indexfile:write("const homedir = require('os').homedir();\n")
+
 	indexfile:write("\nvar isWin = process.platform === \"win32\";\n")
 	indexfile:write("var isLinux = process.platform === \"linux\";\n")
 	indexfile:write("var isMac = process.platform === \"darwin\";\n")
@@ -804,12 +773,11 @@ function build.make(postmake, configs, settings)
 
 		indexfile:write("\nasync function unzipdir(inputpath,outputpath) {\n")
 
-		indexfile:write("var ext = getfileext(inputpath)\n")
-		indexfile:write("if (ext == \".zip\") {\n")
+		indexfile:write("if (inputpath.endsWith(\".zip\")) {\n")
 		indexfile:write("fs.mkdirSync(outputpath, { recursive: true })\n")
 		indexfile:write("const zip = new AdmZip(inputpath);\n")
 		indexfile:write("zip.extractAllTo(outputpath,true);\n")
-		indexfile:write("} else if (ext == \".tar.gz\") {\n")
+		indexfile:write("} else if (inputpath.endsWith(\".tar.gz\")) {\n")
 		indexfile:write("fs.mkdirSync(outputpath, { recursive: true })\n")
 		indexfile:write("await tar.x({\n")
 		indexfile:write("    file: inputpath,\n")
@@ -817,7 +785,7 @@ function build.make(postmake, configs, settings)
 		indexfile:write("})\n")
 
 		indexfile:write("} else {\n")
-		indexfile:write("    throw new Error('unable to unzip file type of \' + ext + \"\'\");\n")
+		indexfile:write("    throw new Error('unable to unzip file type of \' + inputpath + \"\'\");\n")
 		indexfile:write("}\n")
 
 		indexfile:write("}\n")
@@ -869,11 +837,16 @@ function build.make(postmake, configs, settings)
 		indexfile:write("}\n")
 	end
 
-	local haswindowsconfig = true
-	if haswindowsconfig then
-		indexfile:write("\nfunction revolvewindowspath(path) {\n")
-		indexfile:write("}\n")
-	end
+	indexfile:write("\nfunction revolvepath(path) {\n")
+	indexfile:write("\nvar r = path.replaceAll(\"~/\", homedir + \"/\")\n")
+
+	indexfile:write("if (process.platform == \"windows\") {\n")
+	indexfile:write("r = path.replaceAll(\"/\", \"\\\\\")\n")
+	indexfile:write("}\n")
+
+	indexfile:write("\nreturn r\n")
+	indexfile:write("}\n")
+
 	indexfile:write("async function main() {\n")
 
 	local uploadfilecontext = {}
@@ -891,7 +864,7 @@ function build.make(postmake, configs, settings)
 
 		if isexported then
 			indexfile:write("var " ..
-				flagtovarable(value.name) .. " = " .. "github.getInput(\"" .. value.name .. "\"); \n")
+				flagtovarable(value.name) .. " = " .. "core.getInput(\"" .. value.name .. "\"); \n")
 		else
 			indexfile:write("var " ..
 				flagtovarable(value.name) ..
@@ -902,7 +875,7 @@ function build.make(postmake, configs, settings)
 		if istestmode then
 			indexfile:write("\nvar versiontodownload = \"\";\n")
 		else
-			indexfile:write("\nvar versiontodownload = github.getInput('version');\n")
+			indexfile:write("\nvar versiontodownload = core.getInput('version');\n")
 		end
 
 		indexfile:write("if (versiontodownload == \"\") {\n")
