@@ -121,7 +121,10 @@ postmake.make(githubaction, { win, gnu, mac },
 		weburl = installwebsite,
 		uploaddir = "./output/githubactionupload/",
 		singlefile = "githubactioninstalldata",
-		version = {},
+		version = {
+			getdatabase =
+			"https://raw.githubusercontent.com/LostbBlizzard/postmake-action/refs/heads/master/database.json"
+		},
 		proxy = {
 			path = postmake.installdir() .. postmake.appname,
 			program = unixmainprogram
