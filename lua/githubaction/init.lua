@@ -16,7 +16,8 @@ local AllowedSettingsFields = {
 	"export",
 	"dependencies",
 	"testmode",
-	"compressiontype"
+	"compressiontype",
+	"proxy"
 }
 
 local programinstalldir = ""
@@ -463,6 +464,17 @@ local function getversionindexjsfile(databaseurl)
 	r = r .. "        if (hassinglefile) {\n"
 	r = r .. "           removedir(singlefiledir);\n"
 	r = r .. "        }\n"
+
+	r = r .. "               if (programversion.proxy.program != \"\") {\n"
+	r = r .. "                   if (isUnix) {\n"
+	r = r .. "                       var content = '#!/usr/bin/env bash\\n';\n"
+	r = r .. "                       content += programversion.proxy.program + \" \\\"$@\\\"\"\n"
+	r = r .. "                       fs.writeFileSync(revolvepath(programversion.proxy.path), content);\n"
+	r = r .. "                   }\n"
+	r = r .. "                   else {\n"
+	r = r .. "                   }\n"
+	r = r .. "                   fs.chmodSync(revolvepath(programversion.proxy.path), 0o775)\n"
+	r = r .. "               }\n"
 	r = r .. "        foundversion = true\n"
 	r = r .. "        break\n"
 	r = r .. "    }\n"
@@ -501,6 +513,10 @@ end
 ---@field installcmd programcmd[]
 ---@field uninstallcmd programcmd[]
 
+---@class programdataproxy
+---@field path string
+---@field program string
+
 ---@class versiondata
 ---@field postmakeversion string
 ---@field version string
@@ -508,6 +524,7 @@ end
 ---@field downloadurl string
 ---@field programs programversion[]
 ---@field singlefile string
+---@field proxy programdataproxy
 
 ---@class programdatabase
 ---@field versions versiondata[]
@@ -649,8 +666,16 @@ function build.make(postmake, configs, settings)
 			singlefile = lua.valueif(singlefile == nil, "", function()
 				return singlefile .. getzipext(compressiontype)
 			end),
-			programs = {}
+			programs = {},
+			proxy = {
+				path = "",
+				program = ""
+			}
 		}
+		if settings.proxy ~= nil then
+			newprogramversion.proxy.program = resolveoutputpath(settings.proxy.program)
+			newprogramversion.proxy.path = resolveoutputpath(settings.proxy.path)
+		end
 		table.insert(olddata.versions, newprogramversion)
 	end
 

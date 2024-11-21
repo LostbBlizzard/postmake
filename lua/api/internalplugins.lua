@@ -19,6 +19,11 @@ local VersionSetting = {}
 ---@field macos? MacOsShellScriptConfigDependencies
 ---@field windows? WindowsGithubConfigDependencies
 
+---@class GithubActionConfigProxy
+---@field path string
+---@field program string
+local GithubActionConfigProxy = {};
+
 ---@class GitHubActionConfig
 ---@field weburl string
 ---@field uploaddir? string
@@ -28,7 +33,10 @@ local VersionSetting = {}
 ---@field export GitHubActionExportVarable[]
 ---@field dependencies? GitHubActionConfigDependencies
 ---@field testmode? boolean
+---@field proxy? GithubActionConfigProxy
 local GitHubActionConfig = {}
+
+
 
 ---@class ShellScriptConfigProxy
 ---@field uninstallcmd string

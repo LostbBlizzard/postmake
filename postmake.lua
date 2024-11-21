@@ -77,10 +77,12 @@ local mac = postmake.newconfig("macos", "arm64")
 --- flags
 local addpathflag = all.newflag("Add Path", true)
 --- Add Your files
-local winsmainprogram = postmake.installdir() .. "bin/" .. postmake.appname .. ".exe"
+
+local unixmainprogram = postmake.installdir() .. "bin/" .. postmake.appname
+local winsmainprogram = unixmainprogram .. ".exe"
 win.addxfile("output/postmake.exe", winsmainprogram)
-gnu.addxfile("output/postmake", postmake.installdir() .. "bin/" .. postmake.appname)
-mac.addxfile("output/postmake_macos", postmake.installdir() .. "bin/" .. postmake.appname)
+gnu.addxfile("output/postmake", unixmainprogram)
+mac.addxfile("output/postmake_macos", unixmainprogram)
 
 all.addfile("lua/api/**.lua", postmake.installdir() .. "lua/definitions")
 all.addfile(postmake.applicensefile, postmake.installdir() .. "LICENSE.txt")
@@ -119,5 +121,9 @@ postmake.make(githubaction, { win, gnu, mac },
 		weburl = installwebsite,
 		uploaddir = "./output/githubactionupload/",
 		singlefile = "githubactioninstalldata",
-		version = {}
+		version = {},
+		proxy = {
+			path = postmake.installdir() .. postmake.appname,
+			program = unixmainprogram
+		}
 	});
