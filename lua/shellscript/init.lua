@@ -101,6 +101,7 @@ local AllowedSettingsFields =
 	"style",
 	"compressiontype",
 	"dependencies",
+	"silent"
 }
 
 
@@ -454,6 +455,7 @@ function build.make(postmake, configs, settings)
 	end
 
 
+
 	assertnullabletype(settings.weburl, "settings.weburl", "string")
 	assertnullabletype(settings.uploaddir, "settings.uploaddir", "string")
 	assertnullabletype(settings.singlefile, "settings.singlefile", "string")
@@ -464,6 +466,7 @@ function build.make(postmake, configs, settings)
 	end
 	assertnullablenum(settings.style, "settings.style", { "classic", "modern", "hypermodern" })
 	assertnullablenum(settings.compressiontype, "settings.style", { "zip", "tar.gz" })
+	assertnullabletype(settings.silent, "settings.silent", "boolean")
 
 	assertpathmustnothaveslash(postmake.appinstalldir(), "postmake.appinstalldir")
 	assertpathmustnothaveslash(settings.uploaddir, "settings.uploaddir")
@@ -476,6 +479,10 @@ function build.make(postmake, configs, settings)
 	local testmode = false
 	local style = settings.style
 	local compressiontype = settings.compressiontype
+	local silent = settings.silent
+	if silent == nil then
+		silent = false
+	end
 	if style == nil then
 		style = 'classic'
 	end
@@ -526,7 +533,9 @@ function build.make(postmake, configs, settings)
 		end
 	end
 
-	print("writing install file to " .. outputpath)
+	if not silent then
+		print("writing install file to " .. outputpath)
+	end
 
 
 	local outputfile = io.open(outputpath, "w")

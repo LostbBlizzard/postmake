@@ -44,7 +44,8 @@ local ContextBasedDefaultsSettinsList =
 }
 local Othersettings = {
 	"proxy",
-	"UninstallDelete"
+	"UninstallDelete",
+	"silent"
 }
 
 ---@param postmake pluginpostmake
@@ -172,6 +173,7 @@ function build.make(postmake, configs, settings)
 	assertnullabletype(settings.MyAppExeName, "settings.MyAppExeName", "string")
 	assertnullabletype(settings.MyAppPublisher, "settings.MyAppPublisher", "string")
 	assertnullabletype(settings.MyAppVersion, "settings.MyAppVersion", "string")
+	assertnullabletype(settings.silent, "settings.silent", "boolean")
 
 	if settings.UninstallDelete ~= nil then
 		asserttypearray(settings.UninstallDelete, "settings.UninstallDelete", "string")
@@ -187,11 +189,16 @@ function build.make(postmake, configs, settings)
 	---Other Settings
 
 	---
-	print("---building inno script")
+	local silent = settings.silent
+	if silent ~= nil then
+		silent = false
+	end
 
 	local outputpath = "./" .. postmake.output() .. ".iss"
-
-	print("writing install file to " .. outputpath)
+	if silent == false then
+		print("---building inno script")
+		print("writing install file to " .. outputpath)
+	end
 
 	local outputfile = io.open(outputpath, "w")
 	if outputfile == nil then

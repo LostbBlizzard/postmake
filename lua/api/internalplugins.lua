@@ -34,7 +34,10 @@ local GithubActionConfigProxy = {};
 ---@field dependencies? GitHubActionConfigDependencies
 ---@field testmode? boolean
 ---@field proxy? GithubActionConfigProxy
-local GitHubActionConfig = {}
+---@field silent? boolean
+local GitHubActionConfig = {
+	silent = false,
+}
 
 
 
@@ -78,9 +81,11 @@ function ShellScriptPlugin.GetUploadfilePath(input, uploadfilecontext, onadded) 
 ---@field style? shellscriptstyle
 ---@field compressiontype? shellscriptcompressiontype
 ---@field dependencies? ShellScriptConfigDependencies
+---@field silent? boolean
 local ShellScriptConfig = {
 	style = 'classic',
-	compressiontype = "tar.gz"
+	compressiontype = "tar.gz",
+	silent = false,
 }
 
 
@@ -101,7 +106,10 @@ local InnoSetupConfigProxy = {};
 ---@field MyAppPublisher? string	
 ---@field MyAppVersion? string	
 ---@field UninstallDelete? string[] Additional files or directories you want the uninstaller to delete See https://jrsoftware.org/ishelp/topic_uninstalldeletesection.htm
-local InnoSetConfig = {}
+---@field silent? boolean
+local InnoSetConfig = {
+	silent = false,
+}
 
 
 ---@class EnbedPlugin

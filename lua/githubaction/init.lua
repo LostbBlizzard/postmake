@@ -17,7 +17,8 @@ local AllowedSettingsFields = {
 	"dependencies",
 	"testmode",
 	"compressiontype",
-	"proxy"
+	"proxy",
+	"silent"
 }
 
 local programinstalldir = ""
@@ -570,11 +571,19 @@ function build.make(postmake, configs, settings)
 	end
 
 	assertpathmustnothaveslash(postmake.appinstalldir(), "postmake.appinstalldir")
+	lua.assertnullabletype(settings.silent, "settings.silent", "boolean")
 
 	local outputpathdir = "./" .. postmake.output() .. "/githubaction/"
 	local srcdir = outputpathdir .. "./src/"
 
-	print("---building github action to " .. outputpathdir)
+	local silent = settings.silent
+	if silent == nil then
+		silent = false
+	end
+
+	if not silent then
+		print("---building github action to " .. outputpathdir)
+	end
 
 	programinstalldir = postmake.appinstalldir();
 
