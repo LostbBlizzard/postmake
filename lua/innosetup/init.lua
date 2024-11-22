@@ -190,7 +190,7 @@ function build.make(postmake, configs, settings)
 
 	---
 	local silent = settings.silent
-	if silent ~= nil then
+	if silent == nil then
 		silent = false
 	end
 
