@@ -26,3 +26,7 @@
 ---@alias shellscriptcompressiontype
 ---| 'tar.gz' [tar.gz files]
 ---| 'zip' [zip files]
+
+
+---@alias checksumtype
+---| 'sha256' [SHA-2 (Secure Hash Algorithm 2)]

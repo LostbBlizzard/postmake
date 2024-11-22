@@ -101,7 +101,8 @@ local AllowedSettingsFields =
 	"style",
 	"compressiontype",
 	"dependencies",
-	"silent"
+	"silent",
+	"checksum"
 }
 
 

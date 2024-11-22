@@ -18,7 +18,8 @@ local AllowedSettingsFields = {
 	"testmode",
 	"compressiontype",
 	"proxy",
-	"silent"
+	"silent",
+	"checksum"
 }
 
 local programinstalldir = ""

@@ -18,6 +18,7 @@ function unamemodule.isunix() end
 ---@class osmodule
 ---@field uname unamemodule
 ---@field curl curlmodule
+---@field sha256sum sha256module
 local osmodule = {}
 
 ---@param input string
@@ -108,3 +109,14 @@ function curlmodule.downloadtext(weburl) end
 ---@param weburl string
 ---@param body string
 function curlmodule.post(weburl, body) end
+
+---@class sha256module
+local sha256module = {}
+
+---@param filepath string
+---@return string
+function sha256module.hashfile(filepath) end
+
+---@param text string
+---@return string
+function sha256module.hashtext(text) end

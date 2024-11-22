@@ -35,6 +35,7 @@ local GithubActionConfigProxy = {};
 ---@field testmode? boolean
 ---@field proxy? GithubActionConfigProxy
 ---@field silent? boolean
+---@field checksum? checksumtype
 local GitHubActionConfig = {
 	silent = false,
 }
@@ -82,6 +83,7 @@ function ShellScriptPlugin.GetUploadfilePath(input, uploadfilecontext, onadded) 
 ---@field compressiontype? shellscriptcompressiontype
 ---@field dependencies? ShellScriptConfigDependencies
 ---@field silent? boolean
+---@field checksum? checksumtype
 local ShellScriptConfig = {
 	style = 'classic',
 	compressiontype = "tar.gz",

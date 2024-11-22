@@ -2,6 +2,7 @@ package luamodule
 
 import (
 	"bytes"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -14,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	"crypto/sha256"
 	"postmake/utils"
 
 	lua "github.com/yuin/gopher-lua"
@@ -370,6 +372,44 @@ func MakeOsModule(l *lua.LState) *lua.LTable {
 	}
 
 	l.SetField(table, "curl", curltable)
+
+	sha256table := l.NewTable()
+	{
+		l.SetField(sha256table, "hashfile", l.NewFunction(func(l *lua.LState) int {
+			filepath := l.ToString(1)
+
+			f, err := os.Open(filepath)
+			if err != nil {
+				utils.CheckErr(err)
+			}
+			defer f.Close()
+
+			h := sha256.New()
+			if _, err := io.Copy(h, f); err != nil {
+				utils.CheckErr(err)
+			}
+
+			hash := h.Sum(nil)
+			r := hex.EncodeToString(hash)
+
+			l.Push(lua.LString(r))
+			return 1
+		}))
+		l.SetField(sha256table, "hashtext", l.NewFunction(func(l *lua.LState) int {
+			text := l.ToString(1)
+
+			h := sha256.New()
+			h.Write([]byte(text))
+
+			hash := h.Sum(nil)
+			r := hex.EncodeToString(hash)
+
+			l.Push(lua.LString(r))
+			return 1
+		}))
+
+	}
+	l.SetField(table, "sha256sum", sha256table)
 
 	return table
 }
