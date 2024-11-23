@@ -72,7 +72,7 @@ local all = postmake.allconfig
 --- Configs
 local win = postmake.newconfig("windows", "x64")
 local gnu = postmake.newconfig("linux", "x64")
-local mac = postmake.newconfig("macos", "arm64")
+local mac = postmake.newconfig("macos", "x64")
 
 --- flags
 local addpathflag = all.newflag("Add Path", true)
