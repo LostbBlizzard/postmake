@@ -1,6 +1,7 @@
 package main
 
 import (
+	_ "embed"
 	"errors"
 	"fmt"
 	"os"
@@ -11,11 +12,16 @@ import (
 
 	"github.com/alecthomas/kong"
 	"golang.org/x/exp/rand"
+	"gopkg.in/yaml.v2"
 
 	"postmake/utils"
 )
 
 var CLI struct {
+	Version struct {
+		Info string `default:"all" enum:"all,name,version,githash,targetos,targetarch,builddate" help:""`
+	} ` short:"v" cmd:""  help:"get program version" `
+
 	Init struct {
 		Output string `default:"postmake.lua" help:"Output File"`
 	} `cmd:""  help:"Makes a new postmake.lua"  type:"path"`
@@ -44,6 +50,9 @@ var CLI struct {
 		} `cmd`
 	} `cmd:"" short:"c"`
 }
+
+//go:embed version.yaml
+var VersionFile string
 
 var letterRunes = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890")
 
@@ -184,6 +193,45 @@ func main() {
 		settings.UpdateChannel = ParseUpdateChannel(CLI.Config.Set.UpdateChannel.Value)
 
 		Savesettings(settings)
+	case "version":
+		type versionfile struct {
+			Name       string
+			Version    string
+			Githash    string
+			Targetos   string
+			Targetarch string
+			Builddate  string
+		}
+		versioninfo := versionfile{}
+
+		err := yaml.Unmarshal([]byte(VersionFile), &versioninfo)
+		if err != nil {
+			panic(err)
+		}
+
+		infotolog := CLI.Version.Info
+		switch infotolog {
+		case "all":
+			fmt.Printf("name:%s \n", versioninfo.Name)
+			fmt.Printf("version:%s \n", versioninfo.Version)
+			fmt.Printf("githash:%s \n", versioninfo.Githash)
+			fmt.Printf("targetos:%s \n", versioninfo.Targetos)
+			fmt.Printf("targetarch:%s \n", versioninfo.Targetarch)
+			fmt.Printf("builddate:%s \n", versioninfo.Builddate)
+
+		case "name":
+			println(versioninfo.Name)
+		case "version":
+			println(versioninfo.Version)
+		case "githash":
+			println(versioninfo.Githash)
+		case "targetos":
+			println(versioninfo.Targetos)
+		case "targetarch":
+			println(versioninfo.Targetarch)
+		case "builddate":
+			println(versioninfo.Builddate)
+		}
 	default:
 		panic(ctx.Command())
 	}
