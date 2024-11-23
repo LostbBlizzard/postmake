@@ -8,6 +8,7 @@ require (
 	github.com/mholt/archiver/v4 v4.0.0-alpha.8
 	github.com/yuin/gopher-lua v1.1.1
 	golang.org/x/exp v0.0.0-20240904232852-e7e105dedf7e
+	gopkg.in/yaml.v2 v2.2.2
 )
 
 require (
@@ -28,4 +29,5 @@ require (
 	github.com/ulikunitz/xz v0.5.10 // indirect
 	go4.org v0.0.0-20200411211856-f5505b9728dd // indirect
 	golang.org/x/text v0.3.8 // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

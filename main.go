@@ -27,6 +27,22 @@ var CLI struct {
 	} `cmd:"" help:"Builds an Install file using postmake.lua file"`
 	Uninstall struct {
 	} `cmd:""  help:"Uninstalls postmake from the system" `
+	Config struct {
+		Get struct {
+			AutoUpdate    struct{} `cmd:""  help:"Gets config value of AutoUpdate" `
+			UpdateChannel struct{} `cmd:""  help:"Gets config value of UpdateChannel" `
+			All           struct{} `cmd:"" Gets all config values`
+			ConfigPath    struct{} `cmd:"" get the config path`
+		} `cmd`
+		Set struct {
+			AutoUpdate struct {
+				Value string `required:"" enum:"true,false" short:"v"`
+			} `cmd:""  help:"Set config value of AutoUpdate" `
+			UpdateChannel struct {
+				Value string `required:"" enum:"release,hotfix,bleedingedge" short:"v"`
+			} `cmd:""  help:"Set config value of UpdateChannel"  `
+		} `cmd`
+	} `cmd:"" short:"c"`
 }
 
 var letterRunes = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890")
@@ -119,6 +135,55 @@ func main() {
 			fmt.Print(err)
 			os.Exit(1)
 		}
+
+	case "config get auto-update":
+		settings, err := Getsettings()
+		if err != nil {
+			fmt.Print(err)
+			os.Exit(1)
+		}
+		fmt.Println(settings.AutoUpdate)
+	case "config get update-channel":
+		settings, err := Getsettings()
+		if err != nil {
+			fmt.Print(err)
+			os.Exit(1)
+		}
+
+		fmt.Println(settings.UpdateChannel)
+
+	case "config get all":
+		settings, err := Getsettings()
+		if err != nil {
+			fmt.Print(err)
+			os.Exit(1)
+		}
+
+		fmt.Printf("AutoUpdate:%t \n", settings.AutoUpdate)
+		fmt.Printf("UpdateChannel:%s \n", settings.UpdateChannel)
+
+	case "config get config-path":
+		fmt.Println(GetSettingsPath())
+
+	case "config set auto-update":
+		settings, err := Getsettings()
+		if err != nil {
+			fmt.Print(err)
+			os.Exit(1)
+		}
+		settings.AutoUpdate = CLI.Config.Set.AutoUpdate.Value == "true"
+
+		Savesettings(settings)
+
+	case "config set update-channel":
+		settings, err := Getsettings()
+		if err != nil {
+			fmt.Print(err)
+			os.Exit(1)
+		}
+		settings.UpdateChannel = ParseUpdateChannel(CLI.Config.Set.UpdateChannel.Value)
+
+		Savesettings(settings)
 	default:
 		panic(ctx.Command())
 	}
