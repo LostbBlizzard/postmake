@@ -60,16 +60,29 @@ func NewSettings() *Settings {
 	}
 }
 
-func GetSettingsPath() string {
+func GetSettingsDir() (string, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
-		panic(err)
+		return "", err
 	}
-	return path.Join(home, ".postmake", "config.yaml")
+	return path.Join(home, ".config", "postmake"), nil
+
+}
+
+func GetSettingsPath() (string, error) {
+	dir, err := GetSettingsDir()
+	if err != nil {
+		return "", err
+	}
+
+	return path.Join(dir, "config.yaml"), nil
 }
 
 func Getsettings() (*Settings, error) {
-	settingsfilepath := GetSettingsPath()
+	settingsfilepath, err := GetSettingsPath()
+	if err != nil {
+		return nil, err
+	}
 
 	if _, err := os.Stat(settingsfilepath); errors.Is(err, os.ErrNotExist) {
 		return NewSettings(), nil
@@ -91,11 +104,26 @@ func Getsettings() (*Settings, error) {
 }
 
 func Savesettings(settings *Settings) error {
-	settingsfilepath := GetSettingsPath()
+	settingsfilepath, err := GetSettingsPath()
+	if err != nil {
+		return err
+	}
 
 	d, err := yaml.Marshal(&settings)
 	if err != nil {
 		return err
+	}
+
+	dirpath, err := GetSettingsDir()
+	if err != nil {
+		return err
+	}
+
+	if _, err := os.Stat(dirpath); errors.Is(err, os.ErrNotExist) {
+		err = os.MkdirAll(dirpath, os.ModePerm)
+		if err != nil {
+			return err
+		}
 	}
 
 	err = os.WriteFile(settingsfilepath, []byte(d), 0644)

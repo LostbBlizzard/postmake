@@ -172,7 +172,12 @@ func main() {
 		fmt.Printf("UpdateChannel:%s \n", settings.UpdateChannel)
 
 	case "config get config-path":
-		fmt.Println(GetSettingsPath())
+		path, err := GetSettingsPath()
+		if err != nil {
+			fmt.Print(err)
+			os.Exit(1)
+		}
+		fmt.Println(path)
 
 	case "config set auto-update":
 		settings, err := Getsettings()
