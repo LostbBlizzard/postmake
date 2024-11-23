@@ -105,6 +105,7 @@ local AllowedSettingsFields =
 	"checksum"
 }
 
+local singlefileshashshellvarable = "###SINGLEFILEHASH###"
 
 local has_value_map = postmake.lua.has_value_map
 local has_value = postmake.lua.has_value
@@ -165,6 +166,36 @@ local function writecomds(outputfile, cmd)
 	outputfile:write(stringtowrite)
 end
 
+
+
+---@param filetohash string?
+---@param hashvalue string?
+---@param filepath string
+---@param checksum checksumtype
+---@return string
+local function makechecksumcommand(filetohash, hashvalue, filepath, checksum)
+	if checksum == 'sha256' then
+		local hash
+		if filetohash ~= nil then
+			hash = postmake.os.sha256sum.hashfile(filetohash)
+		else
+			hash = hashvalue
+		end
+
+		return "echo \"" .. hash .. " " ..
+		    filepath ..
+		    "\" | sha256sum --check --status "
+	end
+
+	return ""
+end
+
+---@param input string
+---@return string
+local function getreplacehash(input)
+	return "###hash" .. input .. "###"
+end
+
 ---@param outputfile file*
 ---@param config pluginconfig | subconfig
 ---@param weburl string
@@ -175,8 +206,9 @@ end
 ---@param compressiontype shellscriptcompressiontype
 ---@param singlefile string?
 ---@param dirspit string
+---@param checksum checksumtype?
 local function onconfig(outputfile, config, weburl, uploaddir, uninstallfile, testmode, uploadfilecontext,
-			compressiontype, singlefile, dirspit)
+			compressiontype, singlefile, dirspit, checksum)
 	---@type { archivepath: string, files: string[] }[]
 	local archivestomake = {}
 
@@ -212,6 +244,19 @@ local function onconfig(outputfile, config, weburl, uploaddir, uninstallfile, te
 						postmake.path.getfilename(newout) .. "'\n")
 					outputfile:write("curl -sSLJ " ..
 						weburl .. "/" .. newfilename .. " -o " .. newout .. "\n")
+				end
+
+				if checksum ~= nil then
+					local checkcmd = makechecksumcommand(input, nil, newout, checksum)
+					local filename = postmake.path.getfilename(newout)
+
+					outputfile:write("echo verifying " .. filename .. "\n")
+
+					outputfile:write(checkcmd .. " || (echo \"verification failed for " ..
+						filename ..
+						"\" rollbacking back changes && fileinstallroleback "
+						.. " && exit 1)\n"
+					)
 				end
 			else
 				outputfile:write("echo 'moveing " .. postmake.path.getfilename(newout) .. "'\n")
@@ -293,6 +338,20 @@ local function onconfig(outputfile, config, weburl, uploaddir, uninstallfile, te
 						outputfile:write("curl -sSLJ " ..
 							weburl .. "/" .. newout .. " -o " .. resolvenewout .. "\n\n")
 					end
+
+					-- TODO allow checksum to work on directorys
+					-- if checksum ~= nil  then
+					-- 	local checkcmd = makechecksumcommand(nil, getreplacehash(newout),
+					-- 		resolvenewout, checksum)
+					-- 	local filename = newout
+					--
+					-- 	outputfile:write("echo verifying " .. filename .. "\n")
+					--
+					-- 	outputfile:write(checkcmd .. " || (echo \"verification failed for " ..
+					-- 		filename ..
+					-- 		"\" rollbacking back changes && fileinstallroleback && exit 1)\n"
+					-- 	)
+					-- end
 
 					outputfile:write("echo 'Unziping " .. newout .. "'\n")
 
@@ -468,6 +527,7 @@ function build.make(postmake, configs, settings)
 	assertnullablenum(settings.style, "settings.style", { "classic", "modern", "hypermodern" })
 	assertnullablenum(settings.compressiontype, "settings.style", { "zip", "tar.gz" })
 	assertnullabletype(settings.silent, "settings.silent", "boolean")
+	assertnullablenum(settings.checksum, "settings.checksum", { "sha256" })
 
 	assertpathmustnothaveslash(postmake.appinstalldir(), "postmake.appinstalldir")
 	assertpathmustnothaveslash(settings.uploaddir, "settings.uploaddir")
@@ -481,6 +541,7 @@ function build.make(postmake, configs, settings)
 	local style = settings.style
 	local compressiontype = settings.compressiontype
 	local silent = settings.silent
+	local checksum = settings.checksum
 	if silent == nil then
 		silent = false
 	end
@@ -898,6 +959,18 @@ function build.make(postmake, configs, settings)
 					weburl .. "/" .. singlefile .. ext .. " -o " .. outfilewithext .. "\n")
 			end
 
+			if checksum ~= nil then
+				local checkcmd = makechecksumcommand(nil, singlefileshashshellvarable, outfilewithext,
+					checksum)
+
+
+				outputfile:write("echo verifying " .. singlefile .. "\n")
+				outputfile:write(checkcmd .. " || (echo \"verification failed for " ..
+					singlefile ..
+					"\" rollbacking back changes && rm " .. outfilewithext .. " && exit 1)\n"
+				)
+			end
+
 			outputfile:write("mkdir -p " .. outfile .. "\n")
 			outputfile:write(makeunzipcmd(compressiontype, outfilewithext, outfile) .. "\n")
 
@@ -908,7 +981,7 @@ function build.make(postmake, configs, settings)
 
 		local dirspit = config.os() .. "-" .. config.arch()
 		onconfig(outputfile, config, weburl, uploaddir, uninstallfile, testmode, uploadfilecontext,
-			compressiontype, singlefile, dirspit)
+			compressiontype, singlefile, dirspit, checksum)
 
 		for _, subconfig in ipairs(config.ifs) do
 			local isfirstiniflistloop = true
@@ -1140,6 +1213,32 @@ function build.make(postmake, configs, settings)
 		archive(compressiontype, inputfiles, mainfile)
 
 		postmake.os.rmall(maindir)
+
+		if checksum ~= nil then
+			outputfile:close()
+			if checksum == 'sha256' then
+				local checksumtext = postmake.os.sha256sum.hashfile(mainfile)
+
+				local function read_file(path)
+					local file = io.open(path, "rb") -- r read mode and b binary mode
+					if not file then return "" end
+					local content = file:read "*a" -- *a or *all reads the whole file
+					file:close()
+					return content
+				end
+
+				local newtext = read_file(outputpath)
+				local updatedatatext = newtext:gsub(singlefileshashshellvarable, checksumtext)
+
+				outputfile = io.open(outputpath, "w")
+				if outputfile == nil then
+					print("unable to reopen file '" .. outputpath .. "'")
+					os.exit(1)
+				end
+
+				outputfile:write(updatedatatext)
+			end
+		end
 	end
 
 	outputfile:close()

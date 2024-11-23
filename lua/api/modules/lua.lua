@@ -150,7 +150,7 @@ function luamodule.assertenum(value, varablename, possableenumvalues)
 
 	local hasvalue = false
 	for _, itemvalue in ipairs(possableenumvalues) do
-		if itemvalue ~= value then
+		if itemvalue == value then
 			hasvalue = true
 			break
 		end
