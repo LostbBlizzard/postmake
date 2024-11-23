@@ -8,14 +8,24 @@ BuildInstallersWin:
 
 PreBuildInstallers:
 	mkdir -p ./lua/bin
-	env GOOS=windows go build -o ./lua/bin/win32 -v ./luaruner/main.go
-	env GOOS=linux go build -o ./lua/bin/linux32 -v ./luaruner/main.go
-	env GOOS=darwin go build -o ./lua/bin/mac -v ./luaruner/main.go
+	env GOOS=windows GOARCH=amd64 go build -o ./lua/bin/win32 -v ./luaruner/main.go
+	env GOOS=linux GOARCH=amd64 go build -o ./lua/bin/linux32 -v ./luaruner/main.go
+	env GOOS=darwin GOARCH=amd64 go build -o ./lua/bin/mac -v ./luaruner/main.go
 	
 	mkdir -p ./output
-	env GOOS=windows go build -o ./output/postmake.exe -v .
-	env GOOS=linux go build -o ./output/postmake -v .
-	env GOOS=darwin go build -o ./output/postmake_macos -v .
+
+	cp ./version.yaml ./version.yaml.bak
+
+	python3 ./updateversion.py ${VERSIONNAME} ${POSTMAKEVERSION} windows x86_64
+	env GOOS=windows GOARCH=amd64 go build -o ./output/postmake.exe -v .
+	
+	python3 ./updateversion.py ${VERSIONNAME} ${POSTMAKEVERSION} linux x86_64
+	env GOOS=linux GOARCH=amd64 go build -o ./output/postmake -v .
+
+	python3 ./updateversion.py ${VERSIONNAME} ${POSTMAKEVERSION} macos x86_64
+	env GOOS=darwin GOARCH=amd64 go build -o ./output/postmake_macos -v .
+
+	mv ./version.yaml.bak ./version.yaml
 
 BuildAPIDocs:
 	luadocparser run --files ./lua/api
