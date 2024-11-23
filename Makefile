@@ -25,6 +25,9 @@ PreBuildInstallers:
 	python3 ./updateversion.py ${VERSIONNAME} ${POSTMAKEVERSION} macos x86_64
 	env GOOS=darwin GOARCH=amd64 go build -o ./output/postmake_macos -v .
 
+	python3 ./updateversion.py ${VERSIONNAME} ${POSTMAKEVERSION} macos arm64
+	env GOOS=darwin GOARCH=arm64 go build -o ./output/postmake_macos_arm64 -v .
+
 	mv ./version.yaml.bak ./version.yaml
 
 BuildAPIDocs:

@@ -72,7 +72,9 @@ local all = postmake.allconfig
 --- Configs
 local win = postmake.newconfig("windows", "x64")
 local gnu = postmake.newconfig("linux", "x64")
+
 local mac = postmake.newconfig("macos", "x64")
+local macarm64 = postmake.newconfig("macos", "arm64")
 
 --- flags
 local addpathflag = all.newflag("Add Path", true)
@@ -83,6 +85,7 @@ local winsmainprogram = unixmainprogram .. ".exe"
 win.addxfile("output/postmake.exe", winsmainprogram)
 gnu.addxfile("output/postmake", unixmainprogram)
 mac.addxfile("output/postmake_macos", unixmainprogram)
+macarm64.addxfile("output/postmake_macos_arm64", unixmainprogram)
 
 all.addfile("lua/api/**.lua", postmake.installdir() .. "lua/definitions")
 all.addfile(postmake.applicensefile, postmake.installdir() .. "LICENSE.txt")
@@ -91,7 +94,7 @@ all.If(addpathflag).addpath(postmake.installdir())
 
 local installwebsite = "https://github.com/LostbBlizzard/postmake/releases/download/Release-" .. postmake.appversion
 
-postmake.make(shellscript, { gnu, mac },
+postmake.make(shellscript, { gnu, mac, macarm64 },
 	---@type ShellScriptConfig
 	{
 		weburl = installwebsite,
@@ -115,7 +118,7 @@ postmake.make(innosetup, { win },
 		},
 	});
 
-postmake.make(githubaction, { win, gnu, mac },
+postmake.make(githubaction, { win, gnu, mac, macarm64 },
 	---@type GitHubActionConfig
 	{
 		weburl = installwebsite,
