@@ -10,10 +10,13 @@ local valueif = postmake.lua.valueif
 local deep_copy = postmake.lua.deep_copy
 local asserttype = postmake.lua.asserttype
 
+---@alias relfilehash {path:string,hash:string}
+
 ---@class testconfigfile
 ---@field input string
 ---@field output string
 ---@field isexutable boolean
+---@field filehash string|relfilehash[]
 local testconfigfile = {}
 
 ---@class testconfigdata
@@ -40,6 +43,31 @@ local function getconfig(config)
 	return r
 end
 
+---@param fileinput string
+---@return string|{path:string,hash:string}[]
+local function getcheckhash(fileinput)
+	if postmake.match.isbasicmatch(fileinput) then
+		return postmake.os.sha256sum.hashfile(fileinput)
+	else
+		---@type {path:string,hash:string}[]
+		local hash = {}
+
+		local basepath = postmake.path.absolute(postmake.match.getbasepath(fileinput))
+
+		postmake.match.matchpath(fileinput, function(filepath)
+			local newp = postmake.path.absolute(filepath)
+			local relpath = newp:sub(basepath:len() + 2)
+
+			print("check:" .. relpath)
+			table.insert(hash, {
+				path = relpath,
+				hash = postmake.os.sha256sum.hashfile(filepath)
+			})
+		end)
+		return hash
+	end
+end
+
 ---@param config Config
 ---@param fileinput string
 ---@param fileout string
@@ -51,7 +79,8 @@ function m.addxfile(config, fileinput, fileout)
 	local newfile = {
 		input = fileinput,
 		output = fileout,
-		isexutable = false
+		isexutable = false,
+		filehash = getcheckhash(fileinput)
 	}
 
 	local configdata = getconfig(config)
@@ -90,7 +119,8 @@ function m.addfile(config, fileinput, fileout)
 	local newfile = {
 		input = fileinput,
 		output = fileout,
-		isexutable = false
+		isexutable = false,
+		filehash = getcheckhash(fileinput)
 	}
 
 	local configdata = getconfig(config)
@@ -110,9 +140,13 @@ local function checkforfiles(path, configdata)
 			local outfile = path .. value.output
 
 			print("checking for " .. outfile)
-			---TODO check if file the current file is the same
 			if not postmake.os.exist(outfile) then
 				print("file is missing at " .. outfile .. "")
+				isbad = true
+			elseif value.filehash ~= postmake.os.sha256sum.hashfile(outfile) then
+				print("file hash at " ..
+					outfile ..
+					" cause by " .. value.input .. " are not the same the original")
 				isbad = true
 			end
 		else
@@ -126,10 +160,38 @@ local function checkforfiles(path, configdata)
 				local outfile = dir .. filename
 
 				print("checking for " .. outfile)
-				---TODO check if file the current file is the same
 				if not postmake.os.exist(outfile) then
 					print("file is missing at " .. outfile .. " cause by " .. value.input)
 					isbad = true
+				else
+					local relpath = fullpath:sub(basepath:len() + 2)
+					print(relpath)
+
+					local valuefilehashes = value.filehash
+					---@cast valuefilehashes relfilehash[]
+
+					---@type relfilehash?
+					local found = nil
+					for _, fvalue in ipairs(valuefilehashes) do
+						print("f:" .. fvalue.path)
+						if fvalue.path == relpath then
+							found = fvalue
+							break
+						end
+					end
+
+					if found == nil then
+						return
+					end
+
+
+					print("checking hash of " .. outfile)
+					if found.hash ~= postmake.os.sha256sum.hashfile(fullpath) then
+						isbad = true
+						print("file hash at " ..
+							outfile ..
+							" cause by " .. value.input .. " are not the same the original")
+					end
 				end
 			end)
 		end
