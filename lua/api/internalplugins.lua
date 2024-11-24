@@ -84,10 +84,12 @@ function ShellScriptPlugin.GetUploadfilePath(input, uploadfilecontext, onadded) 
 ---@field dependencies? ShellScriptConfigDependencies
 ---@field silent? boolean
 ---@field checksum? checksumtype
+---@field rollbackonfail? boolean
 local ShellScriptConfig = {
 	style = 'classic',
 	compressiontype = "tar.gz",
 	silent = false,
+	rollbackonfail = false
 }
 
 

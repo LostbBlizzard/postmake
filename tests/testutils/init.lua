@@ -58,7 +58,6 @@ local function getcheckhash(fileinput)
 			local newp = postmake.path.absolute(filepath)
 			local relpath = newp:sub(basepath:len() + 2)
 
-			print("check:" .. relpath)
 			table.insert(hash, {
 				path = relpath,
 				hash = postmake.os.sha256sum.hashfile(filepath)
@@ -165,7 +164,6 @@ local function checkforfiles(path, configdata)
 					isbad = true
 				else
 					local relpath = fullpath:sub(basepath:len() + 2)
-					print(relpath)
 
 					local valuefilehashes = value.filehash
 					---@cast valuefilehashes relfilehash[]
@@ -173,7 +171,6 @@ local function checkforfiles(path, configdata)
 					---@type relfilehash?
 					local found = nil
 					for _, fvalue in ipairs(valuefilehashes) do
-						print("f:" .. fvalue.path)
 						if fvalue.path == relpath then
 							found = fvalue
 							break

@@ -102,7 +102,8 @@ local AllowedSettingsFields =
 	"compressiontype",
 	"dependencies",
 	"silent",
-	"checksum"
+	"checksum",
+	"rollbackonfail"
 }
 
 local singlefileshashshellvarable = "###SINGLEFILEHASH###"
@@ -458,7 +459,9 @@ end
 ---@param configs pluginconfig[]
 ---@param settings ShellScriptConfig
 function build.make(postmake, configs, settings)
-	print("---building shell script")
+	if settings.silent == nil or settings.silent == false then
+		print("---building shell script")
+	end
 
 	--- Boring checks
 	if settings.weburl == nil then
@@ -528,6 +531,7 @@ function build.make(postmake, configs, settings)
 	assertnullablenum(settings.compressiontype, "settings.style", { "zip", "tar.gz" })
 	assertnullabletype(settings.silent, "settings.silent", "boolean")
 	assertnullablenum(settings.checksum, "settings.checksum", { "sha256" })
+	assertnullabletype(settings.rollbackonfail, "settings.rollbackonfail", "boolean")
 
 	assertpathmustnothaveslash(postmake.appinstalldir(), "postmake.appinstalldir")
 	assertpathmustnothaveslash(settings.uploaddir, "settings.uploaddir")
@@ -542,6 +546,10 @@ function build.make(postmake, configs, settings)
 	local compressiontype = settings.compressiontype
 	local silent = settings.silent
 	local checksum = settings.checksum
+	local rolbackonfail = settings.rollbackonfail
+	if rolbackonfail == nil then
+		rolbackonfail = false
+	end
 	if silent == nil then
 		silent = false
 	end
@@ -619,7 +627,7 @@ function build.make(postmake, configs, settings)
 	outputfile:write("\n\n")
 
 
-	if uninstallfile then
+	if uninstallfile or rolbackonfail then
 		outputfile:write("ADDEDFILES=()\n")
 		outputfile:write("ADDEDMATCHS=()\n")
 		outputfile:write("ADDEDDIRS=()\n")
