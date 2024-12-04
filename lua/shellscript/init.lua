@@ -642,6 +642,16 @@ function build.make(postmake, configs, settings)
 		outputfile:write("ADDPATHS=()\n\n")
 	end
 
+	if rolbackonfail then
+		outputfile:write("userstop() {\n")
+		outputfile:write("	echo;\n")
+		outputfile:write("	echo \"stoping install because of interrupt\" \n")
+		outputfile:write("	exit 1\n")
+		outputfile:write("}\n\n")
+
+		outputfile:write("trap \"userstop\" INT\n")
+	end
+
 
 	if haspathvarables then
 		outputfile:write("# Add export if it does not exist\n")
