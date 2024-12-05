@@ -163,6 +163,10 @@ end
 local function rollbackcheck(onversiontwo, severout, overrideinstallrun)
 	makeversion1()
 
+	if postmake.os.exist(postmake.appinstalldir) then
+		postmake.os.rmall(postmake.appinstalldir)
+	end
+
 	os.execute("chmod +x ./output/install.sh")
 	local staticserverpath = "../../staticserver/staticserver"
 
@@ -274,11 +278,25 @@ print("runing on interupted")
 rollbackcheck(function(config)
 	config.addinstallcmd("sleep", { "3" })
 end, nil, function()
-	local scriptproc = postmake.os.exec("bash", { "./output/install.sh" })
+	-- local scriptproc = postmake.os.exec("bash", { "./output/install.sh" })
+	local scriptproc = postmake.os.exec("echo", { "test " })
+
+	scriptproc.onstdout(function(output)
+		print("stdout:" .. output)
+	end)
+
+	scriptproc.onstderror(function(output)
+		print("stderr:" .. output)
+	end)
 
 	scriptproc.start()
 
 	postmake.os.sleep(1)
+	scriptproc.sync()
 
-	scriptproc.kill()
+	scriptproc.interrupt()
+
+	postmake.os.sleep(3)
+
+	scriptproc.sync()
 end)

@@ -82,9 +82,15 @@ function osprocess.wait() end
 
 function osprocess.kill() end
 
+--- Sends the interrupt signal.
+function osprocess.interrupt() end
+
 function osprocess.sync() end
 
 function osprocess.start() end
+
+---@return boolean
+function osprocess.exited() end
 
 ---@param cmd string
 ---@param args string[]

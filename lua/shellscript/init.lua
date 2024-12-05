@@ -22,9 +22,9 @@ end
 ---@param dirout  string
 local function makeunzipcmd(compressiontype, outfile, dirout)
 	if compressiontype == 'tar.gz' then
-		return "tar -xzf " .. outfile .. " -C " .. dirout .. "\n"
+		return "tar -xzf " .. outfile .. " -C " .. dirout
 	elseif compressiontype == 'zip' then
-		return "unzip -q " .. outfile .. " -d " .. dirout .. "\n"
+		return "unzip -q " .. outfile .. " -d " .. dirout
 	end
 end
 
@@ -142,7 +142,8 @@ end
 
 ---@param outputfile file*
 ---@param cmd plugincmd
-local function writecomds(outputfile, cmd)
+---@param roleback boolean
+local function writecomds(outputfile, cmd, roleback)
 	local function ispath(path)
 		return string.find(path, "/", nil, true) or string.find(path, ".", nil, true)
 	end
@@ -165,6 +166,10 @@ local function writecomds(outputfile, cmd)
 	end
 
 	outputfile:write(stringtowrite)
+	if roleback then
+		outputfile:write(
+			" || (echo \"install command failed\" rollbacking back changes && fileinstallroleback && exit 1)")
+	end
 end
 
 
@@ -197,27 +202,30 @@ local function getreplacehash(input)
 	return "###hash" .. input .. "###"
 end
 
+---@class configsettings
+---@field weburl string
+---@field uploaddir string
+---@field testmode boolean
+---@field compressiontype shellscriptcompressiontype
+---@field checksum checksumtype?
+---@field singlefile string?
+---@field uninstallfile string?
+---@field rolbackonfail boolean
+
 ---@param outputfile file*
 ---@param config pluginconfig | subconfig
----@param weburl string
----@param uploaddir string
----@param uninstallfile string?
----@param testmode boolean
 ---@param uploadfilecontext any
----@param compressiontype shellscriptcompressiontype
----@param singlefile string?
 ---@param dirspit string
----@param checksum checksumtype?
-local function onconfig(outputfile, config, weburl, uploaddir, uninstallfile, testmode, uploadfilecontext,
-			compressiontype, singlefile, dirspit, checksum)
+---@param configsettings configsettings
+local function onconfig(outputfile, config, uploadfilecontext, dirspit, configsettings)
 	---@type { archivepath: string, files: string[] }[]
 	local archivestomake = {}
 
 	local archivefiles = {}
 
 	local singledir
-	if singlefile then
-		singledir = uploaddir .. singlefile
+	if configsettings.singlefile then
+		singledir = configsettings.uploaddir .. configsettings.singlefile
 	end
 
 	for inputtable, output in pairs(config.files) do
@@ -227,28 +235,28 @@ local function onconfig(outputfile, config, weburl, uploaddir, uninstallfile, te
 			local newout = resolveoutputpath(output)
 
 			local newfilename = GetUploadfilePath(input, uploadfilecontext, function(input2, newfilename)
-				if singlefile ~= nil then
+				if configsettings.singlefile ~= nil then
 					local filepathtostore = singledir .. "/" .. dirspit .. output
 					postmake.os.mkdirall(postmake.path.getparent(filepathtostore))
 					postmake.os.cp(input2, filepathtostore)
-				elseif uploaddir ~= nil then
-					postmake.os.cp(input2, uploaddir .. newfilename)
+				elseif configsettings.uploaddir ~= nil then
+					postmake.os.cp(input2, configsettings.uploaddir .. newfilename)
 				end
 			end)
 
-			if singlefile == nil then
-				if testmode then
+			if configsettings.singlefile == nil then
+				if configsettings.testmode then
 					outputfile:write("echo 'Copying " .. postmake.path.getfilename(newout) .. "'\n")
 					outputfile:write("cp " .. input .. " " .. newout .. "\n")
 				else
 					outputfile:write("echo 'Downloading " ..
 						postmake.path.getfilename(newout) .. "'\n")
 					outputfile:write("curl -sSLJ " ..
-						weburl .. "/" .. newfilename .. " -o " .. newout .. "\n")
+						configsettings.weburl .. "/" .. newfilename .. " -o " .. newout .. "\n")
 				end
 
-				if checksum ~= nil then
-					local checkcmd = makechecksumcommand(input, nil, newout, checksum)
+				if configsettings.checksum ~= nil then
+					local checkcmd = makechecksumcommand(input, nil, newout, configsettings.checksum)
 					local filename = postmake.path.getfilename(newout)
 
 					outputfile:write("echo verifying " .. filename .. "\n")
@@ -262,7 +270,7 @@ local function onconfig(outputfile, config, weburl, uploaddir, uninstallfile, te
 			else
 				outputfile:write("echo 'moveing " .. postmake.path.getfilename(newout) .. "'\n")
 				outputfile:write("mv " ..
-					resolveoutputpath("/" .. singlefile) ..
+					resolveoutputpath("/" .. configsettings.singlefile) ..
 					"/" .. dirspit .. output .. " " .. newout .. "\n")
 			end
 
@@ -270,7 +278,7 @@ local function onconfig(outputfile, config, weburl, uploaddir, uninstallfile, te
 				outputfile:write("chmod +x " .. newout .. "\n")
 			end
 
-			if uninstallfile then
+			if configsettings.uninstallfile or configsettings.rolbackonfail then
 				outputfile:write("ADDEDFILES+=(\"" .. newout .. "\")\n")
 			end
 			outputfile:write("\n")
@@ -278,13 +286,13 @@ local function onconfig(outputfile, config, weburl, uploaddir, uninstallfile, te
 			local basepath = postmake.path.absolute(postmake.match.getbasepath(input))
 
 			-- local dirname = string.sub(basepath, 0, #basepath - 1)
-			local basezippath = basepath .. getzipext(compressiontype)
+			local basezippath = basepath .. getzipext(configsettings.compressiontype)
 
 			local newout = GetUploadfilePath(basezippath, uploadfilecontext, nil)
 
 			local pathforarchive = newout
-			if singlefile ~= nil then
-				pathforarchive = output .. getzipext(compressiontype)
+			if configsettings.singlefile ~= nil then
+				pathforarchive = output .. getzipext(configsettings.compressiontype)
 			end
 
 			local myarchive
@@ -301,8 +309,8 @@ local function onconfig(outputfile, config, weburl, uploaddir, uninstallfile, te
 					archivepath = newout,
 					files = {}
 				}
-				if singlefile ~= nil then
-					myarchive.archivepath = output .. getzipext(compressiontype)
+				if configsettings.singlefile ~= nil then
+					myarchive.archivepath = output .. getzipext(configsettings.compressiontype)
 				end
 
 
@@ -320,25 +328,48 @@ local function onconfig(outputfile, config, weburl, uploaddir, uninstallfile, te
 			if isfirst then
 				local resolvenewout = resolveoutputpath("/" .. newout)
 
-				if singlefile ~= nil then
+				if configsettings.singlefile ~= nil then
 					outputfile:write("echo 'Unziping " .. newout .. "'\n")
 
-					local ext = "." .. compressiontype
-					local file = resolveoutputpath("/" .. singlefile) ..
+					local ext = "." .. configsettings.compressiontype
+					local file = resolveoutputpath("/" .. configsettings.singlefile) ..
 					    "/" .. dirspit .. output .. ext
 					local dirout = resolveoutputpath(output)
 
-					outputfile:write(makeunzipcmd(compressiontype, file, dirout) .. "\n")
+					local cmd = makeunzipcmd(configsettings.compressiontype, file, dirout)
+					if configsettings.rolbackonfail then
+						cmd = cmd ..
+						    " || (echo \"unziping file failed for " ..
+						    newout ..
+						    "\" rollbacking back changes && rm \"" ..
+						    file .. "&& fileinstallroleback && exit 1)"
+					end
+					outputfile:write(cmd ..
+						"\n")
 				else
-					if testmode then
+					local getfilecmd = ""
+					if configsettings.testmode then
 						outputfile:write("echo 'Copying " .. newout .. "'\n")
-						outputfile:write("cp " ..
-							uploaddir .. newout .. " " .. resolvenewout .. "\n\n")
+
+						getfilecmd = "cp " ..
+						    configsettings.uploaddir ..
+						    newout .. " " .. resolvenewout
 					else
 						outputfile:write("echo 'Downloading " .. newout .. "'\n")
-						outputfile:write("curl -sSLJ " ..
-							weburl .. "/" .. newout .. " -o " .. resolvenewout .. "\n\n")
+
+						getfilecmd = "curl -sSLJ " ..
+						    configsettings.weburl ..
+						    "/" .. newout .. " -o " .. resolvenewout
 					end
+
+
+					if configsettings.rolbackonfail then
+						getfilecmd = getfilecmd ..
+						    " || (echo \"download file failed for " ..
+						    newout ..
+						    "\" rollbacking back changes && fileinstallroleback  && exit 1)"
+					end
+					outputfile:write(getfilecmd .. "\n\n")
 
 					-- TODO allow checksum to work on directorys
 					-- if checksum ~= nil  then
@@ -356,14 +387,24 @@ local function onconfig(outputfile, config, weburl, uploaddir, uninstallfile, te
 
 					outputfile:write("echo 'Unziping " .. newout .. "'\n")
 
-					outputfile:write(makeunzipcmd(compressiontype, resolvenewout,
-						resolveoutputpath(output)) .. "\n")
+					local cmd = makeunzipcmd(configsettings.compressiontype, resolvenewout,
+						resolveoutputpath(output))
+
+					if configsettings.rolbackonfail then
+						cmd = cmd ..
+						    " || (echo \"unziping file failed for " ..
+						    newout ..
+						    "\" rollbacking back changes && rm \"" ..
+						    resolvenewout .. "\" && fileinstallroleback  && exit 1)"
+					end
+					outputfile:write(cmd .. "\n")
+
 
 					outputfile:write("rm -rf " .. resolvenewout .. "\n\n")
 				end
 			end
 
-			if uninstallfile then
+			if configsettings.uninstallfile or configsettings.rolbackonfail then
 				local hasallinlist = true
 				local base = resolveoutputpath(output)
 
@@ -412,30 +453,30 @@ local function onconfig(outputfile, config, weburl, uploaddir, uninstallfile, te
 	for _, output in pairs(config.paths) do
 		outputfile:write("AddPath " .. resolveoutputpath(output) .. " \n")
 
-		if uninstallfile then
+		if configsettings.uninstallfile or configsettings.rolbackonfail then
 			outputfile:write("ADDEDPATHS+=('" .. resolveoutputpath(output) .. "')\n")
 		end
 	end
 
 	for _, cmd in ipairs(config.installcmds) do
-		writecomds(outputfile, cmd)
+		writecomds(outputfile, cmd, configsettings.rolbackonfail)
 		outputfile:write("\n")
 	end
 
 
-	if uninstallfile then
+	if configsettings.uninstallfile then
 		for _, cmd in ipairs(config.uninstallcmds) do
 			outputfile:write("ADDEDUNINSTALLCMDS+=(\"")
-			writecomds(outputfile, cmd)
+			writecomds(outputfile, cmd, configsettings.rolbackonfail)
 			outputfile:write("\")\n")
 		end
 	end
 
-	if uploaddir ~= nil then
+	if configsettings.uploaddir ~= nil then
 		for _, value in ipairs(archivestomake) do
 			local outpath = ""
 
-			if singlefile then
+			if configsettings.singlefile then
 				outpath = singledir .. "/" .. dirspit .. "/" .. value.archivepath
 
 				local parent = postmake.path.getparent(outpath);
@@ -443,10 +484,10 @@ local function onconfig(outputfile, config, weburl, uploaddir, uninstallfile, te
 					postmake.os.mkdirall(parent)
 				end
 			else
-				outpath = uploaddir .. value.archivepath
+				outpath = configsettings.uploaddir .. value.archivepath
 			end
 
-			archive(compressiontype, value.files, outpath)
+			archive(configsettings.compressiontype, value.files, outpath)
 		end
 	end
 end
@@ -643,13 +684,38 @@ function build.make(postmake, configs, settings)
 	end
 
 	if rolbackonfail then
+		local teppostfix = ".postmakebak"
 		outputfile:write("userstop() {\n")
 		outputfile:write("	echo;\n")
 		outputfile:write("	echo \"stoping install because of interrupt\" \n")
+		outputfile:write("	fileinstallroleback\n")
 		outputfile:write("	exit 1\n")
 		outputfile:write("}\n\n")
 
-		outputfile:write("trap \"userstop\" INT\n")
+		outputfile:write("fileinstallroleback() {\n")
+		outputfile:write("	for i in \"${ADDEDFILES[@]}\"\n")
+		outputfile:write("	do\n")
+		outputfile:write("		rm $i\n")
+		outputfile:write("	done\n")
+		outputfile:write("	for i in \"${ADDEDDIRS[@]}\"\n")
+		outputfile:write("	do\n")
+		outputfile:write("		rmdir $i\n")
+		outputfile:write("	done\n")
+
+		outputfile:write("	mv $moveddir/" .. teppostfix .. "/* $Installdir\n")
+		-- outputfile:write("	rmdir $moveddir/" .. teppostfix .. " \n")
+		outputfile:write("}\n\n")
+
+		outputfile:write("trap \"userstop\" INT\n\n")
+
+		outputfile:write("hasdirmade=false\n")
+		outputfile:write("moveddir=\"\"\n")
+		outputfile:write("if [ -d $Installdir ]; \n")
+		outputfile:write("then \n")
+		outputfile:write("hasdirmade=true\n")
+		outputfile:write("moveddir=\"$(mktemp -d)\"\n")
+		outputfile:write("mv $Installdir $moveddir/" .. teppostfix .. "\n")
+		outputfile:write("fi\n")
 	end
 
 
@@ -791,6 +857,17 @@ function build.make(postmake, configs, settings)
 
 	local uploadfilecontext = {}
 
+	---@type configsettings
+	local configsett = {
+		weburl = weburl,
+		uploaddir = uploaddir,
+		testmode = testmode,
+		compressiontype = compressiontype,
+		rolbackonfail = rolbackonfail,
+		checksum = checksum,
+		singlefile = singlefile,
+		uninstallfile = uninstallfile,
+	}
 	for configindex, config in ipairs(configs) do
 		local islast = configindex == #configs
 
@@ -968,14 +1045,25 @@ function build.make(postmake, configs, settings)
 			local outfile = resolveoutputpath("/" .. singlefile)
 			local outfilewithext = outfile .. ext
 
+			local singlefilecmd = ""
 			if testmode then
 				outputfile:write("echo 'Copying " .. singlefile .. "'\n")
-				outputfile:write("cp " .. mainfile .. " " .. outfilewithext .. "\n")
+				singlefilecmd = "cp " .. mainfile .. " " .. outfilewithext
 			else
 				outputfile:write("echo 'Downloading " .. singlefile .. "'\n")
-				outputfile:write("curl -sSLJ " ..
-					weburl .. "/" .. singlefile .. ext .. " -o " .. outfilewithext .. "\n")
+
+				singlefilecmd = "curl -sSLJ " ..
+				    weburl .. "/" .. singlefile .. ext .. " -o " .. outfilewithext
 			end
+
+			if rolbackonfail then
+				singlefilecmd = singlefilecmd ..
+				    " || (echo \"Downloading file failed for " ..
+				    singlefile ..
+				    "\" rollbacking back changes && fileinstallroleback  && exit 1)"
+			end
+
+			outputfile:write(singlefilecmd .. "\n")
 
 			if checksum ~= nil then
 				local checkcmd = makechecksumcommand(nil, singlefileshashshellvarable, outfilewithext,
@@ -990,7 +1078,7 @@ function build.make(postmake, configs, settings)
 			end
 
 			outputfile:write("mkdir -p " .. outfile .. "\n")
-			outputfile:write(makeunzipcmd(compressiontype, outfilewithext, outfile) .. "\n")
+			outputfile:write(makeunzipcmd(compressiontype, outfilewithext, outfile) .. "\n\n")
 
 			outputfile:write("rm " .. outfilewithext .. "\n")
 
@@ -998,8 +1086,7 @@ function build.make(postmake, configs, settings)
 		end
 
 		local dirspit = config.os() .. "-" .. config.arch()
-		onconfig(outputfile, config, weburl, uploaddir, uninstallfile, testmode, uploadfilecontext,
-			compressiontype, singlefile, dirspit, checksum)
+		onconfig(outputfile, config, uploadfilecontext, dirspit, configsett)
 
 		for _, subconfig in ipairs(config.ifs) do
 			local isfirstiniflistloop = true
@@ -1037,10 +1124,7 @@ function build.make(postmake, configs, settings)
 				outputfile:write("\n")
 			end
 
-			onconfig(outputfile, subconfig, weburl, uploaddir, uninstallfile, testmode, uploadfilecontext,
-				compressiontype
-				, singlefile, dirspit)
-
+			onconfig(outputfile, subconfig, uploadfilecontext, dirspit, configsett)
 
 			outputfile:write("\nfi\n\n")
 		end
@@ -1061,6 +1145,11 @@ function build.make(postmake, configs, settings)
 	outputfile:write("exit 1\n\n")
 	outputfile:write("fi\n\n")
 
+
+	if rolbackonfail then
+		-- outputfile:write("ls $moveddir\n")
+		-- outputfile:write("rmdir $moveddir\n")
+	end
 
 	if uninstallfile ~= nil then
 		local resolvefile = resolveoutputpath(uninstallfile)

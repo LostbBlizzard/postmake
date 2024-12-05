@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"syscall"
 	"time"
 
 	"crypto/sha256"
@@ -211,6 +212,22 @@ func MakeOsModule(l *lua.LState) *lua.LTable {
 		//
 		rettable := l.NewTable()
 		l.SetField(rettable, "start", l.NewFunction(func(l *lua.LState) int {
+
+			if state.onstdoutcallback != nil {
+				if state.stdoutpipe == nil {
+					stdinpipe, err := state.process.StdoutPipe()
+					utils.CheckErr(err)
+					state.stdoutpipe = &stdinpipe
+				}
+			}
+			if state.onstderrcallback != nil {
+				if state.stderrpipe == nil {
+					stdinpipe, err := state.process.StderrPipe()
+					utils.CheckErr(err)
+					state.stderrpipe = &stdinpipe
+				}
+			}
+
 			err := state.process.Start()
 			utils.CheckErr(err)
 
@@ -248,7 +265,13 @@ func MakeOsModule(l *lua.LState) *lua.LTable {
 			return 0
 		}))
 		l.SetField(rettable, "exited", l.NewFunction(func(l *lua.LState) int {
-			l.Push(lua.LBool(state.process.ProcessState.Exited()))
+			r := false
+			if state.process.ProcessState == nil {
+				r = false
+			} else {
+				r = true
+			}
+			l.Push(lua.LBool(r))
 			return 1
 		}))
 		l.SetField(rettable, "wait", l.NewFunction(func(l *lua.LState) int {
@@ -259,39 +282,35 @@ func MakeOsModule(l *lua.LState) *lua.LTable {
 			utils.CheckErr(state.process.Process.Kill())
 			return 0
 		}))
+		l.SetField(rettable, "interrupt", l.NewFunction(func(l *lua.LState) int {
+			utils.CheckErr(state.process.Process.Signal(syscall.SIGINT))
+			return 0
+		}))
 		l.SetField(rettable, "sync", l.NewFunction(func(l *lua.LState) int {
 			if state.onstdoutcallback != nil {
-				if state.stdoutpipe == nil {
-					stdinpipe, err := state.process.StdoutPipe()
-					utils.CheckErr(err)
-					state.stdoutpipe = &stdinpipe
-				}
-
 				newtext := make([]byte, 0)
-				_, err := (*state.stdoutpipe).Read(newtext)
+				c, err := (*state.stdoutpipe).Read(newtext)
 				utils.CheckErr(err)
 
-				l.Push(state.onstdoutcallback)
-				l.Push(lua.LString(newtext))
-				l.PCall(1, 0, nil)
+				if c != 0 {
+					l.Push(state.onstdoutcallback)
+					l.Push(lua.LString(newtext))
+					l.PCall(1, 0, nil)
+				}
 			}
 			if state.onstderrcallback != nil {
-				if state.stderrpipe == nil {
-					stdinpipe, err := state.process.StderrPipe()
-					utils.CheckErr(err)
-					state.stderrpipe = &stdinpipe
-				}
 
 				newtext := make([]byte, 0)
-				_, err := (*state.stderrpipe).Read(newtext)
+				c, err := (*state.stderrpipe).Read(newtext)
 				utils.CheckErr(err)
 
-				l.Push(state.onstderrcallback)
-				l.Push(lua.LString(newtext))
-				l.PCall(1, 0, nil)
+				if c != 0 {
+					l.Push(state.onstderrcallback)
+					l.Push(lua.LString(newtext))
+					l.PCall(1, 0, nil)
+				}
 			}
 
-			utils.CheckErr(state.process.Process.Kill())
 			return 0
 		}))
 
