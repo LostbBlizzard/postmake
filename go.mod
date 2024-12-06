@@ -8,7 +8,7 @@ require (
 	github.com/mholt/archiver/v4 v4.0.0-alpha.8
 	github.com/yuin/gopher-lua v1.1.1
 	golang.org/x/exp v0.0.0-20240904232852-e7e105dedf7e
-	gopkg.in/yaml.v2 v2.2.2
+	gopkg.in/yaml.v2 v2.2.8
 )
 
 require (
