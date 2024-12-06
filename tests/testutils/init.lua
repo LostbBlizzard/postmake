@@ -340,7 +340,7 @@ local function runtest(configs, pluginconfig)
 	---@return boolean
 	local function dostaticsevercheck(configs, config)
 		local localseverport = "3000"
-		local weburl = "http://localhost:" .. localseverport .. "/"
+		local weburl = "http://localhost:" .. localseverport
 
 		local configcopy = deep_copy(config)
 		configcopy.weburl = weburl
@@ -444,7 +444,7 @@ local function githubcheck(configs, pluginconfig)
 	postmake.os.mkdirall(pluginconfig.uploaddir)
 
 	local localseverport = "3000"
-	local weburl = "http://localhost:" .. localseverport .. "/"
+	local weburl = "http://localhost:" .. localseverport
 
 	local localconfig = deep_copy(pluginconfig)
 	localconfig.testmode = true

@@ -576,9 +576,10 @@ function build.make(postmake, configs, settings)
 
 	assertpathmustnothaveslash(postmake.appinstalldir(), "postmake.appinstalldir")
 	assertpathmustnothaveslash(settings.uploaddir, "settings.uploaddir")
+	assertpathmustnothaveslash(settings.weburl, "settings.weburl")
 	--- passed in settings
 	local weburl = settings.weburl
-	local uploaddir = settings.uploaddir
+	local uploaddir = settings.uploaddir .. "/"
 	local uninstallfile = settings.uninstallfile
 	local proxy = settings.proxy
 	local singlefile = settings.singlefile

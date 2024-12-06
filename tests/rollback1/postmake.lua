@@ -81,8 +81,8 @@ postmake.appinstalldir = "./installedapp"
 
 
 local localseverport = "3000"
-local weburl = "http://localhost:" .. localseverport .. "/"
-local uploadir = "./uploadir/"
+local weburl = "http://localhost:" .. localseverport
+local uploadir = "./uploadir"
 
 local function makeversion1()
 	--- Configs

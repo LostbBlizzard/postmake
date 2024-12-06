@@ -572,6 +572,8 @@ function build.make(postmake, configs, settings)
 	end
 
 	assertpathmustnothaveslash(postmake.appinstalldir(), "postmake.appinstalldir")
+	assertpathmustnothaveslash(settings.weburl, "settings.weburl")
+	assertpathmustnothaveslash(settings.uploaddir, "settings.uploaddir")
 	lua.assertnullabletype(settings.silent, "settings.silent", "boolean")
 
 	local outputpathdir = "./" .. postmake.output() .. "/githubaction/"
@@ -589,7 +591,7 @@ function build.make(postmake, configs, settings)
 	programinstalldir = postmake.appinstalldir();
 
 	local weburl = settings.weburl
-	local uploaddir = settings.uploaddir
+	local uploaddir = settings.uploaddir .. "/"
 	local singlefile = settings.singlefile
 	local version = settings.version
 	local compressiontype = settings.compressiontype

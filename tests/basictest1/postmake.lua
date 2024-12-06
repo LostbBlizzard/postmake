@@ -36,11 +36,11 @@ postmake.lua.assert(postmaketest.make(shellscript, { gnu, mac },
 	---@type ShellScriptConfig
 	{
 		weburl = "website.com",
-		uploaddir = "./uploadir/"
+		uploaddir = "./uploadir"
 	}), "shellscript setup failed");
 postmake.lua.assert(postmaketest.make(innosetup, { win }, { AppId = InnoAppID, }), "inno setup failed");
 
 postmake.lua.assert(postmaketest.make(githubaction, { gnu, mac, win }, {
 	weburl = "website.com",
-	uploaddir = "./output/githubactionupload/",
+	uploaddir = "./output/githubactionupload",
 }), "githubaction setup failed");
