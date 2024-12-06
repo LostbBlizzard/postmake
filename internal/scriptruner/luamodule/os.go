@@ -17,7 +17,7 @@ import (
 	"time"
 
 	"crypto/sha256"
-	"postmake/utils"
+	"github.com/LostbBlizzard/postmake/internal/utils"
 
 	lua "github.com/yuin/gopher-lua"
 )

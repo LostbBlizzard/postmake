@@ -346,7 +346,7 @@ local function runtest(configs, pluginconfig)
 		configcopy.weburl = weburl
 		configcopy.testmode = false
 
-		local exitcode = os.execute("cd ../../staticserver && go build")
+		local exitcode = os.execute("cd ../../tools/staticserver && go build")
 		if exitcode ~= 0 then
 			print("go build failed with bad exit code")
 			return false
@@ -355,7 +355,7 @@ local function runtest(configs, pluginconfig)
 		local dir = postmake.path.absolute(configcopy.uploaddir)
 		print("makeing staticserver on " .. weburl .. " on directory " .. dir)
 
-		local serverproc = postmake.os.exec("../../staticserver/staticserver",
+		local serverproc = postmake.os.exec("../../tools/staticserver/staticserver",
 			{ localseverport, configcopy.uploaddir })
 		serverproc.start()
 		print("started server")
@@ -484,7 +484,7 @@ local function githubcheck(configs, pluginconfig)
 			local dir = postmake.path.absolute(pluginconfig.uploaddir)
 			print("makeing staticserver on " .. weburl .. " on directory " .. dir)
 
-			local serverproc = postmake.os.exec("../../staticserver/staticserver",
+			local serverproc = postmake.os.exec("../../tools/staticserver/staticserver",
 				{ localseverport, pluginconfig.uploaddir })
 			serverproc.start()
 			print("started server")

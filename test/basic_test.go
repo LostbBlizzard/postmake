@@ -10,11 +10,13 @@ import (
 func TestScript(t *testing.T) {
 
 	rootdir, _ := os.Getwd()
+	rootdir = rootdir + "/.."
 
-	testdir := rootdir + "/tests/"
+	testdir := rootdir + "/test/"
 	items, _ := os.ReadDir(testdir)
 
-	cmd := exec.Command("go", "build")
+	cmd := exec.Command("make", "postmake")
+	cmd.Dir = rootdir
 	err := cmd.Start()
 	if err != nil {
 		panic(err)

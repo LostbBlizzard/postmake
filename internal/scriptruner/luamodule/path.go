@@ -1,9 +1,9 @@
 package luamodule
 
 import (
+	"github.com/LostbBlizzard/postmake/internal/utils"
 	"os"
 	"path/filepath"
-	"postmake/utils"
 	"strings"
 
 	lua "github.com/yuin/gopher-lua"

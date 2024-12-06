@@ -13,7 +13,7 @@ version = args[2]
 targetos = args[3]
 targetarch = args[4]
 
-file = open("version.yaml","w")
+file = open("cmd/postmake/version.yaml","w")
 # file:os.write
 file.write("name: " + name + "\n")
 file.write("version: " + version + "\n")

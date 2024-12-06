@@ -2,8 +2,8 @@ package luamodule
 
 import (
 	"embed"
+	"github.com/LostbBlizzard/postmake/internal/utils"
 	"os"
-	"postmake/utils"
 
 	lua "github.com/yuin/gopher-lua"
 )

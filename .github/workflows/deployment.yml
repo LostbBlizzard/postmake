@@ -38,7 +38,7 @@ jobs:
              output/install.iss
              output/install/**
              output/postmake.exe
-             lua/**/*.lua
+             internal/lua/**/*.lua
              LICENSE.txt
 
     - name: Create a release

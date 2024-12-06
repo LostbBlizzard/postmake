@@ -2,8 +2,8 @@ package luamodule
 
 import (
 	"context"
+	"github.com/LostbBlizzard/postmake/internal/utils"
 	"os"
-	"postmake/utils"
 
 	"github.com/mholt/archiver/v4"
 	lua "github.com/yuin/gopher-lua"

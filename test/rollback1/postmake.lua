@@ -168,7 +168,7 @@ local function rollbackcheck(onversiontwo, severout, overrideinstallrun)
 	end
 
 	os.execute("chmod +x ./output/install.sh")
-	local staticserverpath = "../../staticserver/staticserver"
+	local staticserverpath = "../../tools/staticserver/staticserver"
 
 	local dir = postmake.path.absolute(uploadir)
 	-- print("makeing staticserver on " .. weburl .. " on directory " .. dir)

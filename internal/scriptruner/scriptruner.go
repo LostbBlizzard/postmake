@@ -1,4 +1,4 @@
-package main
+package scriptruner
 
 import (
 	"embed"
@@ -12,8 +12,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"postmake/luamodule"
-	"postmake/utils"
+	"github.com/LostbBlizzard/postmake/internal/scriptruner/luamodule"
+	"github.com/LostbBlizzard/postmake/internal/utils"
 
 	lua "github.com/yuin/gopher-lua"
 )
@@ -581,7 +581,7 @@ func RunScript(input ScriptRunerInput) {
 	log := log.New(os.Stderr, "", 0)
 
 	prebuild := PreBuildContext{
-		target:         CLI.Build.Target,
+		target:         input.Target,
 		loadedplugins:  make(map[string]Loadedplugin),
 		tabletoconfig:  make(map[*lua.LTable]int),
 		pluginsrequres: make(map[string]lua.LValue),
@@ -597,7 +597,7 @@ func RunScript(input ScriptRunerInput) {
 	L.SetField(postmaketable, "applicensefile", lua.LString(""))
 	L.SetField(postmaketable, "appinstalldir", lua.LString(LUAHOMEDir+"app"))
 
-	L.SetField(postmaketable, "output", lua.LString("install-"+CLI.Build.Target))
+	L.SetField(postmaketable, "output", lua.LString("install-"+input.Target))
 
 	L.SetField(postmaketable, "target", L.NewFunction(func(l *lua.LState) int {
 		l.Push(lua.LString(prebuild.target))

@@ -1,5 +1,5 @@
 output
-lua/bin
+intlua/bin
 postmake
-staticserver/static
-staticserver/staticserver
+tools/staticserver/static
+tools/staticserver/staticserver

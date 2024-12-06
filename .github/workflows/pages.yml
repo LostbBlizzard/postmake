@@ -24,7 +24,7 @@ jobs:
         mdbook-version: 'latest'
 
     - name: Build Docs
-      run: make BuildDoc
+      run: make doc
 
     - name: Upload artifact
       uses: actions/upload-pages-artifact@v3
