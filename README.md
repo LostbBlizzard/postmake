@@ -1,6 +1,6 @@
 <div align="center" style="display:grid;place-items:center;">
 <p>
-    <a target="_blank"><img width="100" src="./assets/logo.png" alt="Logo"></a>
+    <a target="_blank"><img width="100" src="./assets/logo.svg" alt="Logo"></a>
 </p>
 <img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT">
 
