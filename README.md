@@ -9,6 +9,8 @@
 
 <h1>Postmake</h1>
 
+<div align=left>
+
 postmake is a tool made generate installer scripts Such as Unix Shell Scripts,Inno Setup Scripts and GitHub Actions from a lua script.
 Lastly a plugin system for any other installer formats not built in.
 
