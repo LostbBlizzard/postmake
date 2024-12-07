@@ -1,6 +1,16 @@
-postmake is a tool made generate installer scripts Such as Unix Shell Scripts,Inno Setup Scripts and GitHub Actions from one lua scripts.
-With Plans of supporting 'winget', ".deb files", "MacOs .app" and nixos packages.
-Lastly a plugin system for any other installer format not built in.
+<div align="center" style="display:grid;place-items:center;">
+<p>
+    <a target="_blank"><img width="100" src="./assets/logo.png" alt="Logo"></a>
+</p>
+<img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT">
+
+[![Go](https://github.com/LostbBlizzard/postmake/actions/workflows/go.yml/badge.svg)](https://github.com/LostbBlizzard/postmake/actions/workflows/go.yml)
+<a href="https://github.com/LostbBlizzard/postmake/actions/workflows/go.yml">
+
+<h1>Postmake</h1>
+
+postmake is a tool made generate installer scripts Such as Unix Shell Scripts,Inno Setup Scripts and GitHub Actions from a lua script.
+Lastly a plugin system for any other installer formats not built in.
 
 The postmake script is an lua script allowing you to make many installers using one script or use logic to your customized your installers.
 
@@ -8,7 +18,6 @@ The postmake script is an lua script allowing you to make many installers using 
 your postmake.lua
 ```lua
 local innosetup = postmake.loadplugin("internal/innosetup")
-local winsmainprogram = postmake.installdir() .. "./" .. postmake.appname .. ".exe"
 
 local InnoAppID = "###{INNOAPPID}###"
 
@@ -29,6 +38,8 @@ local all = postmake.allconfig
 local win = postmake.newconfig("windows", "x64")
 local gnu = postmake.newconfig("linux", "x64")
 local mac = postmake.newconfig("macos", "x64")
+
+local winsmainprogram = postmake.installdir() .. "./" .. postmake.appname .. ".exe"
 
 win.addfile("main.exe", winsmainprogram)
 gnu.addfile("main", postmake.installdir() .. "./" .. postmake.appname)
