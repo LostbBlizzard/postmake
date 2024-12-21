@@ -1,5 +1,5 @@
 output
-internal/scriptruner/lua/bin
+internal/scriptruner/lua/bin/*
 /postmake
 tools/staticserver/static
 tools/staticserver/staticserver
