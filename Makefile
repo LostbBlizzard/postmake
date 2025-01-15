@@ -9,7 +9,7 @@ BuildInstallersWin:
 	output\postmake.exe build
 
 clean:
-	rm -rf ./internal/lua
+	rm -rf ./internal/scriptruner/lua/bin
 	rm -rf ./output
 	rm -rf ./test/rollback1/installedapp
 	rm -rf ./test/rollback1/output
@@ -18,7 +18,7 @@ clean:
 	rm -f ./postmake
 
 testbuild:
-	env VERSIONNAME=0.0.0 POSTMAKEVERSION=0.0.0 make PreBuildInstallers
+	env VERSIONNAME=0.0.0 POSTMAKEVERSION=0.0.0 make prebuildinstallers
 postmake:
 	go build -o postmake -v ./cmd/postmake/main.go 
 test:
@@ -26,9 +26,9 @@ test:
 
 prebuildinstallers:
 	mkdir -p ./internal/lua/bin
-	env GOOS=windows GOARCH=amd64 go build -o ./internal/lua/bin/win32 -v ./cmd/luaruner/main.go
-	env GOOS=linux GOARCH=amd64 go build -o ./internal/lua/bin/linux32 -v ./cmd/luaruner/main.go
-	env GOOS=darwin GOARCH=amd64 go build -o ./internal/lua/bin/mac -v ./cmd/luaruner/main.go
+	env GOOS=windows GOARCH=amd64 go build -o ./internal/scriptruner/lua/bin/win32 -v ./cmd/luaruner/main.go
+	env GOOS=linux GOARCH=amd64 go build -o ./internal/scriptruner/lua/bin/linux32 -v ./cmd/luaruner/main.go
+	env GOOS=darwin GOARCH=amd64 go build -o ./internal/scriptruner/lua/bin/mac -v ./cmd/luaruner/main.go
 	
 	mkdir -p ./output
 
